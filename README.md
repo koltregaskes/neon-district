@@ -2,6 +2,8 @@
 
 `Neon District` is a browser-first cyberpunk isometric shooter prototype inspired by the readable pressure, industrial density, and high-voltage mood of games like *The Ascent*.
 
+The longer-term production target and full design direction now live in [DESIGN-BIBLE.md](./DESIGN-BIBLE.md).
+
 The current build is a vertical slice:
 
 - twin-stick style movement and aim
@@ -51,3 +53,4 @@ That keeps us moving quickly while we build toward denser districts, better comb
 - expand missions beyond wave survival
 - add a named elite/boss encounter
 - bring in audio, hit stop, and stronger impact feedback
+- use the browser build as the fast combat sandbox while the desktop production version is defined
