@@ -190,6 +190,33 @@ export class GameScene extends Phaser.Scene {
     this.graphics.lineTo(topSW.x, topSW.y);
     this.graphics.closePath();
     this.graphics.strokePath();
+
+    const windowCount = Math.max(2, Math.floor(obstacle.height / 28));
+    this.graphics.lineStyle(2, glow, 0.22);
+    for (let index = 0; index < windowCount; index += 1) {
+      const t = (index + 1) / (windowCount + 1);
+      const leftX = Phaser.Math.Linear(baseSW.x, topSW.x, t);
+      const leftY = Phaser.Math.Linear(baseSW.y, topSW.y, t);
+      const rightX = Phaser.Math.Linear(baseSE.x, topSE.x, t);
+      const rightY = Phaser.Math.Linear(baseSE.y, topSE.y, t);
+      this.graphics.beginPath();
+      this.graphics.moveTo(leftX + 12, leftY);
+      this.graphics.lineTo(rightX - 12, rightY);
+      this.graphics.strokePath();
+    }
+
+    if (obstacle.height >= 80) {
+      const signPoint = this.projectPoint({ x: obstacle.x, y: obstacle.y }, anchorX, anchorY, cameraTarget, obstacle.height + 26);
+      this.graphics.fillStyle(0x03070d, 0.78);
+      this.graphics.fillRoundedRect(signPoint.x - 44, signPoint.y - 10, 88, 22, 8);
+      this.graphics.lineStyle(1, glow, 0.8);
+      this.graphics.strokeRoundedRect(signPoint.x - 44, signPoint.y - 10, 88, 22, 8);
+      this.graphics.lineStyle(1, glow, 0.45);
+      this.graphics.beginPath();
+      this.graphics.moveTo(signPoint.x - 32, signPoint.y + 1);
+      this.graphics.lineTo(signPoint.x + 32, signPoint.y + 1);
+      this.graphics.strokePath();
+    }
   }
 
   private drawEnemy(enemy: EnemyState, anchorX: number, anchorY: number, cameraTarget: Vector2) {
@@ -272,6 +299,33 @@ export class GameScene extends Phaser.Scene {
         this.drawDiamond(tilePoint, 208, 104, pattern ? 0x0b1120 : 0x09101c, 0.76, pattern ? 0x16324a : 0x10263b, 0.25);
       }
     }
+
+    const laneFeatures = [
+      { x: 980, y: 1040, width: 920, height: 120, color: 0x0c1525 },
+      { x: 1120, y: 680, width: 880, height: 84, color: 0x101a2b },
+      { x: 760, y: 860, width: 420, height: 86, color: 0x0b1221 },
+    ];
+
+    laneFeatures.forEach((lane) => {
+      const lanePoint = this.projectPoint({ x: lane.x, y: lane.y }, anchorX, anchorY, cameraTarget);
+      this.drawDiamond(lanePoint, lane.width * ISO_HALF_WIDTH, lane.height * ISO_HALF_HEIGHT, lane.color, 0.94, 0x244663, 0.34);
+    });
+
+    const beaconPoints = [
+      { x: 920, y: 730, color: 0xff9b59 },
+      { x: 990, y: 770, color: 0x72ffd6 },
+      { x: 1065, y: 720, color: 0xff6bd8 },
+      { x: 1650, y: 520, color: 0xffce6a },
+      { x: 690, y: 1260, color: 0x6db8ff },
+    ];
+
+    beaconPoints.forEach((beacon) => {
+      const base = this.projectPoint({ x: beacon.x, y: beacon.y }, anchorX, anchorY, cameraTarget, 28);
+      this.graphics.fillStyle(beacon.color, 0.18);
+      this.graphics.fillEllipse(base.x, base.y, 28, 18);
+      this.graphics.lineStyle(2, beacon.color, 0.85);
+      this.graphics.strokeEllipse(base.x, base.y, 18, 10);
+    });
 
     DISTRICT_OBSTACLES
       .slice()

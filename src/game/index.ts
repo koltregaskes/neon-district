@@ -8,6 +8,7 @@ export type NeonDistrictRuntime = {
   simulation: NeonDistrictSimulation;
   destroy: () => void;
   restart: () => void;
+  activateSweep: () => void;
 };
 
 export function createNeonDistrictGame(
@@ -52,5 +53,6 @@ export function createNeonDistrictGame(
       game.destroy(true);
     },
     restart: () => simulation.restart(),
+    activateSweep: () => simulation.activateSweep(),
   };
 }

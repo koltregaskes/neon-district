@@ -92,12 +92,23 @@ const WEAPON_PROFILES: Record<WeaponType, {
 };
 
 export const DISTRICT_OBSTACLES: ArenaObstacle[] = [
-  { id: 'relay-yard', x: 490, y: 360, width: 260, depth: 180, height: 145, glow: '#36f3ff', fill: '#15233c', label: 'Relay Yard' },
-  { id: 'freight-stack', x: 920, y: 380, width: 220, depth: 150, height: 110, glow: '#ff56cf', fill: '#20173d', label: 'Freight Stack' },
-  { id: 'market-gate', x: 1440, y: 330, width: 240, depth: 160, height: 135, glow: '#ffc65a', fill: '#342316', label: 'Market Gate' },
-  { id: 'coolant-tanks', x: 650, y: 930, width: 210, depth: 160, height: 96, glow: '#6d8cff', fill: '#112640', label: 'Coolant Tanks' },
-  { id: 'tower-spine', x: 1120, y: 940, width: 280, depth: 220, height: 180, glow: '#2ef0c9', fill: '#172434', label: 'Tower Spine' },
-  { id: 'mag-rail', x: 1680, y: 970, width: 260, depth: 180, height: 100, glow: '#ff6b87', fill: '#2f1729', label: 'Mag Rail' },
+  { id: 'relay-yard', x: 480, y: 360, width: 260, depth: 180, height: 145, glow: '#36f3ff', fill: '#15233c', label: 'Relay Yard' },
+  { id: 'freight-stack', x: 890, y: 360, width: 210, depth: 150, height: 132, glow: '#ff56cf', fill: '#20173d', label: 'Freight Stack' },
+  { id: 'market-gate', x: 1450, y: 330, width: 250, depth: 170, height: 148, glow: '#ffc65a', fill: '#342316', label: 'Market Gate' },
+  { id: 'coolant-tanks', x: 650, y: 930, width: 220, depth: 160, height: 98, glow: '#6d8cff', fill: '#112640', label: 'Coolant Tanks' },
+  { id: 'tower-spine', x: 1120, y: 930, width: 290, depth: 220, height: 196, glow: '#2ef0c9', fill: '#172434', label: 'Tower Spine' },
+  { id: 'mag-rail', x: 1710, y: 980, width: 290, depth: 190, height: 108, glow: '#ff6b87', fill: '#2f1729', label: 'Mag Rail' },
+  { id: 'night-market', x: 1770, y: 520, width: 190, depth: 120, height: 92, glow: '#ff8ad8', fill: '#2a1734', label: 'Night Market' },
+  { id: 'signal-bridge', x: 1320, y: 650, width: 320, depth: 80, height: 86, glow: '#4af7ff', fill: '#12263b', label: 'Signal Bridge' },
+  { id: 'arcology-west', x: 300, y: 820, width: 250, depth: 190, height: 182, glow: '#52ffcf', fill: '#112132', label: 'Arcology West' },
+  { id: 'garden-roof', x: 1550, y: 1190, width: 200, depth: 150, height: 84, glow: '#7eff96', fill: '#163025', label: 'Garden Roof' },
+  { id: 'ammo-kiosk', x: 1020, y: 1280, width: 120, depth: 100, height: 56, glow: '#ffe16f', fill: '#32270f', label: 'Ammo Kiosk' },
+  { id: 'parking-bay', x: 720, y: 1260, width: 180, depth: 130, height: 48, glow: '#5ea7ff', fill: '#10223a', label: 'Parking Bay' },
+  { id: 'service-yard', x: 1310, y: 1250, width: 220, depth: 140, height: 42, glow: '#67b8ff', fill: '#15243b', label: 'Service Yard' },
+  { id: 'drainage-core', x: 430, y: 1180, width: 130, depth: 120, height: 62, glow: '#6af2ff', fill: '#13303d', label: 'Drainage Core' },
+  { id: 'food-cart-a', x: 880, y: 760, width: 74, depth: 50, height: 40, glow: '#ffab5f', fill: '#3b2316', label: 'Stall A' },
+  { id: 'food-cart-b', x: 960, y: 720, width: 74, depth: 50, height: 40, glow: '#6affd8', fill: '#17312a', label: 'Stall B' },
+  { id: 'food-cart-c', x: 1030, y: 770, width: 74, depth: 50, height: 40, glow: '#ff71c8', fill: '#34162d', label: 'Stall C' },
 ];
 
 function clamp(value: number, min: number, max: number) {
@@ -272,8 +283,9 @@ function createInitialState(): GameState {
     threatLevel: 18,
     timeSeconds: 0,
     mission: createInitialMission(),
-    districtStatus: 'Courier alive. Grid unstable.',
-    districtSummary: 'Mercenary screens are still probing the relay yard. Keep pressure off the centre lane.',
+    districtStatus: 'District quiet. Recon window open.',
+    districtSummary: 'Walk the block, read the sight lines, and get a feel for the stack before you trigger a live sweep.',
+    combatActive: false,
     gameOver: false,
   };
 }
@@ -320,6 +332,13 @@ export class NeonDistrictSimulation {
     this.spawnTimer = 1.2;
   }
 
+  activateSweep() {
+    if (this.state.combatActive || this.state.gameOver) return;
+    this.state.combatActive = true;
+    this.state.districtStatus = 'Sweep live';
+    this.state.districtSummary = 'Mercenary screens are moving back into the stack. Hold the lane and keep the district breathing.';
+  }
+
   setInput(nextInput: SimInput) {
     this.input = nextInput;
   }
@@ -349,6 +368,7 @@ export class NeonDistrictSimulation {
       districtSummary: this.state.districtSummary,
       timeSeconds: this.state.timeSeconds,
       enemyCount: this.state.enemies.length,
+      combatActive: this.state.combatActive,
       gameOver: this.state.gameOver,
     };
   }
@@ -451,6 +471,23 @@ export class NeonDistrictSimulation {
   private applyMissionState() {
     const elapsed = this.state.timeSeconds;
     const player = this.state.player;
+
+    if (!this.state.combatActive) {
+      const explorationProgress = clamp(
+        ((player.position.x / WORLD_WIDTH) * 45) + ((1 - player.position.y / WORLD_HEIGHT) * 55),
+        8,
+        100,
+      );
+      this.state.mission = {
+        title: 'Walk Vanta Stack',
+        detail: 'Move through the market roofs, relay yard, and service lanes to get a feel for the district layout.',
+        progress: explorationProgress,
+        status: 'Recon mode',
+      };
+      this.state.districtStatus = 'District quiet. Recon window open.';
+      this.state.districtSummary = 'This is the environment slice. Move around, read the buildings and chokepoints, then trigger the sweep when you want pressure.';
+      return;
+    }
 
     if (this.state.kills < 12) {
       this.state.mission = {
@@ -558,11 +595,13 @@ export class NeonDistrictSimulation {
       this.fireProjectile();
     }
 
-    this.spawnTimer -= dt;
-    if (this.spawnTimer <= 0) {
-      this.spawnEnemy();
-      const spawnBaseline = Math.max(0.34, 1.55 - this.state.wave * 0.11);
-      this.spawnTimer = spawnBaseline + Math.random() * 0.5;
+    if (state.combatActive) {
+      this.spawnTimer -= dt;
+      if (this.spawnTimer <= 0) {
+        this.spawnEnemy();
+        const spawnBaseline = Math.max(0.34, 1.55 - this.state.wave * 0.11);
+        this.spawnTimer = spawnBaseline + Math.random() * 0.5;
+      }
     }
 
     const nextProjectiles: ProjectileState[] = [];
@@ -663,13 +702,15 @@ export class NeonDistrictSimulation {
     }
 
     state.waveProgress = Math.round(((state.kills % 10) / 10) * 100);
-    state.threatLevel = Math.round(
-      clamp(
-        15 + state.wave * 8 + state.enemies.length * 5 + Math.max(0, 55 - player.health) * 0.45,
-        0,
-        100,
-      ),
-    );
+    state.threatLevel = state.combatActive
+      ? Math.round(
+        clamp(
+          15 + state.wave * 8 + state.enemies.length * 5 + Math.max(0, 55 - player.health) * 0.45,
+          0,
+          100,
+        ),
+      )
+      : 0;
 
     this.applyMissionState();
   }

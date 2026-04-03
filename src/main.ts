@@ -15,6 +15,7 @@ app.innerHTML = `
         <h1>Neon District</h1>
       </div>
       <div class="run-actions">
+        <button class="control-button control-button--alt" id="activateSweepButton" type="button">Activate Sweep</button>
         <button class="control-button" id="restartRunButton" type="button">Reboot Run</button>
       </div>
     </div>
@@ -156,8 +157,9 @@ app.innerHTML = `
 
 const gameRoot = document.querySelector<HTMLElement>('#game-root');
 const restartButton = document.querySelector<HTMLButtonElement>('#restartRunButton');
+const activateSweepButton = document.querySelector<HTMLButtonElement>('#activateSweepButton');
 
-if (!gameRoot || !restartButton) {
+if (!gameRoot || !restartButton || !activateSweepButton) {
   throw new Error('Game shell failed to mount');
 }
 
@@ -203,10 +205,16 @@ const runtime = createNeonDistrictGame(gameRoot, (snapshot) => {
   setText('#enemyCountValue', `${snapshot.enemyCount}`);
 
   restartButton.textContent = snapshot.gameOver ? 'Reboot Run' : 'Reset Prototype';
+  activateSweepButton.disabled = snapshot.combatActive || snapshot.gameOver;
+  activateSweepButton.textContent = snapshot.combatActive ? 'Sweep Live' : 'Activate Sweep';
 });
 
 restartButton.addEventListener('click', () => {
   runtime.restart();
+});
+
+activateSweepButton.addEventListener('click', () => {
+  runtime.activateSweep();
 });
 
 window.addEventListener('beforeunload', () => {

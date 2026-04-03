@@ -105,6 +105,7 @@ export interface GameState {
   mission: MissionState;
   districtStatus: string;
   districtSummary: string;
+  combatActive: boolean;
   gameOver: boolean;
 }
 
@@ -131,5 +132,6 @@ export interface HudSnapshot {
   districtSummary: string;
   timeSeconds: number;
   enemyCount: number;
+  combatActive: boolean;
   gameOver: boolean;
 }
