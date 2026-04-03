@@ -1,0 +1,440 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", "Bahnschrift", sans-serif;
+  line-height: 1.4;
+  font-weight: 400;
+  color: #eef7ff;
+  background:
+    radial-gradient(circle at top, rgba(46, 240, 201, 0.12), transparent 30%),
+    radial-gradient(circle at 18% 22%, rgba(255, 86, 207, 0.18), transparent 26%),
+    linear-gradient(180deg, #02040b 0%, #040915 48%, #06101d 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.shell {
+  min-height: 100vh;
+  padding: 28px;
+  background:
+    linear-gradient(135deg, rgba(8, 15, 27, 0.94), rgba(4, 7, 15, 0.98)),
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.015) 0,
+      rgba(255, 255, 255, 0.015) 2px,
+      transparent 2px,
+      transparent 18px
+    );
+}
+
+.top-ribbon {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.top-ribbon h1,
+.side-dossier h2,
+.mission-card h2 {
+  margin: 0;
+  font-family: "Aptos Display", "Bahnschrift", sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.top-ribbon h1 {
+  font-size: clamp(2.2rem, 4vw, 3.6rem);
+}
+
+.eyebrow {
+  margin-bottom: 10px;
+  color: #71dffc;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.run-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.control-button {
+  border: 1px solid rgba(114, 223, 252, 0.45);
+  border-radius: 999px;
+  padding: 0.9rem 1.3rem;
+  background:
+    linear-gradient(135deg, rgba(37, 63, 99, 0.88), rgba(17, 196, 211, 0.18)),
+    rgba(9, 16, 28, 0.95);
+  color: #f1fbff;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 24px rgba(2, 8, 20, 0.42);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.control-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(158, 241, 255, 0.8);
+  box-shadow: 0 14px 26px rgba(20, 177, 255, 0.18);
+}
+
+.game-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.82fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.game-frame,
+.dossier-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(121, 155, 194, 0.18);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(11, 18, 32, 0.96), rgba(8, 13, 22, 0.98)),
+    rgba(6, 10, 18, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 24px 48px rgba(1, 5, 12, 0.44);
+}
+
+.game-frame {
+  min-height: calc(100vh - 132px);
+  padding: 16px;
+}
+
+.game-frame::before,
+.dossier-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top left, rgba(36, 240, 255, 0.12), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(255, 103, 207, 0.12), transparent 32%);
+  pointer-events: none;
+}
+
+.game-root {
+  width: 100%;
+  min-height: 700px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(132, 174, 218, 0.14);
+  background:
+    linear-gradient(180deg, rgba(5, 10, 18, 0.8), rgba(3, 6, 10, 0.96)),
+    #03060b;
+}
+
+.hud-panel {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.hud-panel--left {
+  left: 32px;
+  top: 32px;
+  width: min(330px, calc(100% - 64px));
+}
+
+.hud-panel--right {
+  right: 32px;
+  top: 32px;
+  width: min(330px, calc(100% - 64px));
+}
+
+.hud-panel--bottom {
+  left: 32px;
+  right: 32px;
+  bottom: 32px;
+  grid-template-columns: 1.4fr minmax(220px, 0.78fr);
+  align-items: end;
+}
+
+.hud-chip,
+.meter-block,
+.mission-card,
+.narrative-card,
+.controls-card,
+.stat-cluster {
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(152, 192, 232, 0.14);
+  background: rgba(5, 11, 20, 0.76);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.22);
+}
+
+.hud-chip,
+.mission-card,
+.narrative-card,
+.controls-card,
+.meter-block {
+  border-radius: 20px;
+}
+
+.hud-chip,
+.mission-card,
+.narrative-card,
+.controls-card {
+  padding: 16px 18px;
+}
+
+.hud-chip strong,
+.meter-row strong,
+.stat strong,
+.mission-card h2 {
+  display: block;
+  color: #f3faff;
+}
+
+.hud-chip span:last-child,
+.narrative-card p,
+.controls-card li,
+.dossier-card p,
+.dossier-card li {
+  color: #aac0d6;
+}
+
+.meter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.meter-block {
+  padding: 14px 16px;
+}
+
+.meter-block--compact {
+  min-height: 88px;
+}
+
+.meter-row,
+.mission-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+}
+
+.meter-row span,
+.stat span {
+  color: #93abc3;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.meter {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(100, 139, 181, 0.18);
+}
+
+.meter span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3de46f, #9af7c9);
+  box-shadow: 0 0 18px rgba(61, 228, 111, 0.35);
+  transition: width 120ms linear;
+}
+
+.meter--shield span {
+  background: linear-gradient(90deg, #3db0ff, #7ef7ff);
+  box-shadow: 0 0 18px rgba(61, 176, 255, 0.34);
+}
+
+.meter--energy span {
+  background: linear-gradient(90deg, #7a7eff, #c06aff);
+  box-shadow: 0 0 18px rgba(122, 126, 255, 0.34);
+}
+
+.meter--heat span {
+  background: linear-gradient(90deg, #ffba4b, #ff5874);
+  box-shadow: 0 0 18px rgba(255, 88, 116, 0.34);
+}
+
+.meter--mission span {
+  background: linear-gradient(90deg, #24f0ff, #58ffbc);
+  box-shadow: 0 0 18px rgba(36, 240, 255, 0.34);
+}
+
+.mission-card p,
+.narrative-card p,
+.dossier-card p {
+  margin: 0;
+}
+
+.stat-cluster {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border-radius: 24px;
+}
+
+.stat {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(9, 17, 29, 0.84);
+  border: 1px solid rgba(135, 185, 236, 0.08);
+}
+
+.stat strong {
+  margin-top: 6px;
+  font-size: 1.15rem;
+}
+
+.controls-card ul,
+.milestone-list {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.controls-card li + li,
+.milestone-list li + li {
+  margin-top: 8px;
+}
+
+.side-dossier {
+  display: grid;
+  gap: 22px;
+}
+
+.dossier-card {
+  padding: 22px 22px 24px;
+}
+
+.dossier-card h2 {
+  margin-bottom: 14px;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+}
+
+.dossier-card p {
+  font-size: 1rem;
+}
+
+.dossier-card ul {
+  color: #c2d3e3;
+}
+
+@media (max-width: 1260px) {
+  .game-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .game-frame {
+    min-height: unset;
+  }
+
+  .side-dossier {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .shell {
+    padding: 18px;
+  }
+
+  .top-ribbon {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .game-frame {
+    padding: 12px;
+  }
+
+  .game-root {
+    min-height: 520px;
+  }
+
+  .hud-panel {
+    position: static;
+    pointer-events: auto;
+    margin-top: 12px;
+  }
+
+  .hud-panel--bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-cluster {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .side-dossier {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell {
+    padding: 12px;
+  }
+
+  .game-root {
+    min-height: 420px;
+  }
+
+  .hud-panel--left,
+  .hud-panel--right {
+    width: 100%;
+  }
+
+  .meter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-cluster {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
