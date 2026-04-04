@@ -367,6 +367,12 @@ a {
   gap: 22px;
 }
 
+.site-footer {
+  padding: 22px 4px 8px;
+  color: #9cb3c8;
+  font-size: 0.92rem;
+}
+
 .dossier-card {
   padding: 22px 22px 24px;
 }

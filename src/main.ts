@@ -152,6 +152,10 @@ app.innerHTML = `
         </div>
       </aside>
     </div>
+
+    <footer class="site-footer">
+      <p>&copy; 2026 Kol Tregaskes. All rights reserved.</p>
+    </footer>
   </div>
 `;
 
