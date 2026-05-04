@@ -1,7 +1,7 @@
-import Phaser from 'phaser';
 import { NeonDistrictSimulation } from './simulation';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
+import type { RunConfig, SimulationEvent, WeaponType } from './types';
 
 export type NeonDistrictRuntime = {
   game: Phaser.Game;
@@ -9,15 +9,18 @@ export type NeonDistrictRuntime = {
   destroy: () => void;
   restart: () => void;
   activateSweep: () => void;
+  setLoadoutWeapon: (weapon: WeaponType) => void;
+  configureRun: (config: RunConfig) => void;
 };
 
 export function createNeonDistrictGame(
   mount: HTMLElement,
   onHudUpdate: (snapshot: ReturnType<NeonDistrictSimulation['createHudSnapshot']>) => void,
+  onEvents: (events: SimulationEvent[]) => void = () => {},
 ): NeonDistrictRuntime {
   const simulation = new NeonDistrictSimulation();
   const bootScene = new BootScene();
-  const gameScene = new GameScene(simulation, onHudUpdate);
+  const gameScene = new GameScene(simulation, onHudUpdate, onEvents);
 
   const game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -54,5 +57,7 @@ export function createNeonDistrictGame(
     },
     restart: () => simulation.restart(),
     activateSweep: () => simulation.activateSweep(),
+    setLoadoutWeapon: (weapon) => simulation.setLoadoutWeapon(weapon),
+    configureRun: (config) => simulation.configureRun(config),
   };
 }

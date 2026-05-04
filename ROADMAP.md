@@ -1,67 +1,170 @@
 # Neon District Roadmap
 
-## Vision
+## Product target
 
-Build a stylish cyberpunk isometric shooter with the mood and density of *The Ascent*, but tuned for browser delivery first so the combat loop, world rules, and progression can harden quickly.
+Ship `Neon District` as a browser-first premium vertical slice that feels closer to a Steam Next Fest candidate than a sandbox prototype: one polished district run, clear build expression, strong authored fiction, dependable performance, and a review flow that can survive repeated external playtests.
 
-## Current slice
+## Current position
 
-- one combat district with collision-heavy industrial landmarks
-- reactive HUD around a live combat canvas
-- enemies with distinct movement and durability profiles
-- energy, shield, heat, and dash resource loop
-- objective framing and short-run arcade scoring
+The project already has a strong contract shell, readable combat foundations, deterministic review routes, and multiple authored mission slices. It is not yet launchable because the quality bar is uneven across progression depth, encounter authorship, audiovisual identity, onboarding, save confidence, and release packaging.
 
-## Vertical slice goals
+## Steam-level quality gaps
 
-### Combat feel
+### Combat and encounter quality
 
-- improve hit feedback with screen shake, flash, and stronger enemy death tells
-- add weapon families: burst rifle, shotgun, beam sidearm
-- introduce alternate fire and cooldown tradeoffs
+- enemy roles still need cleaner tactical separation, especially ranged pressure, support disruption, and boss-stage readability
+- weapon families need stronger identities so choices change playstyle rather than only changing numbers
+- cover, hazards, and arena routing need more authored decision points instead of broad circular kiting
 
-### Encounter design
+### Progression and retention
 
-- cover snap and lane-based firefights
-- elite enemies that pressure positioning instead of pure rush
-- a boss at the end of the district hold/exfil arc
+- permanent progression exists in first-pass form but still needs a full run-to-run economy with meaningful unlock pacing
+- contracts need a clearer ladder so the player can understand what the next 30-60 minutes of improvement looks like
+- save-state confidence, run summaries, and progression messaging need to feel dependable and legible
 
-### World feel
+### UX, onboarding, and accessibility
 
-- ambient signage, transit lines, and layered district props
-- faction identity for mercenaries, drones, and corp security
-- stronger narrative wrapper around the run structure
+- first-run teaching still needs a tighter authored ramp across movement, heat, shield break, gadgets, extraction pressure, and failure recovery
+- shell screens need a more premium street-terminal feel with clearer action priority, reward visibility, and lower cognitive clutter
+- controller parity, readability settings, and fail-state recovery need to be treated as launch criteria rather than optional polish
 
-### Progression
+### Audio and presentation
 
-- currency sinks and between-run upgrades
-- loot rarity and weapon drops
-- modular mission contracts
+- the game still needs a more authored sound and music pass so weapons, shields, elites, and faction spaces feel distinct
+- the district mood needs more layered signage, transit ambience, VFX hierarchy, and screenshot-ready hero moments
+- trailer, capsule, screenshot, and key-art planning have not started
 
-## Phase plan
+### Release readiness
 
-### Phase 1
+- performance budgets, capture standards, and repeatable playtest scripts need explicit gates
+- the current review pack is useful internally, but external-review packaging still needs a clean checklist, known-issues discipline, and save-reset confidence
 
-- clean prototype build
-- core combat polish
-- local docs and backlog
+## Milestone plan
 
-### Phase 2
+### Milestone 1: Combat identity lock
 
-- cover system
-- weapon archetypes
-- enemy ranged pressure
-- boss encounter
+Goal: prove that the minute-to-minute gunplay is good enough to anchor the whole product.
 
-### Phase 3
+Must ship in this milestone:
 
-- multi-zone district
-- vendor/loadout screen
-- persistent progression
-- soundtrack and audio pass
+- three materially different weapon families with alternate-fire tradeoffs
+- clearer enemy role taxonomy across rush, gunline, shield, drone, and support units
+- stronger hit feedback, stagger, shield-break, death, and elite-threat tells
+- at least one authored arena where cover, hazard pressure, and routing create deliberate decisions
 
-### Phase 4
+Exit gate:
 
-- public demo packaging
-- capture trailer and screenshots
-- release-facing balancing and onboarding
+- internal playtests can describe why each weapon exists and which enemy created the failure without guessing
+
+### Milestone 2: Authored contract slice
+
+Goal: turn the strongest mission path into a reviewable, memorable campaign-quality run.
+
+Must ship in this milestone:
+
+- one flagship contract with briefing, infiltration, escalation, boss or setpiece, extraction, and debrief
+- one optional objective or branching opportunity inside the contract
+- stronger faction fiction for the mission giver, opposing force, and district stakes
+- a deterministic review route for the full flagship contract, not only isolated slices
+
+Exit gate:
+
+- a first-time player can finish the flagship route and explain what happened, who they fought, and what reward or consequence they earned
+
+### Milestone 3: Progression and save confidence
+
+Goal: make repeat runs feel like advancement rather than repetition.
+
+Must ship in this milestone:
+
+- durable save/progression flow with clear currency, unlock, and loadout persistence
+- meaningful between-run upgrades across armory, cyberware, and contract access
+- stronger post-run summaries covering rewards, failures, faction movement, and next unlock targets
+- recovery-safe reset and seeded-review paths that cannot silently corrupt live progression
+
+Exit gate:
+
+- three consecutive runs can be played on one profile without unclear rewards, dead-end upgrades, or broken save state
+
+### Milestone 4: Presentation and playtest hardening
+
+Goal: make the build feel stable, watchable, and credible in front of outsiders.
+
+Must ship in this milestone:
+
+- authored audio pass for weapons, shields, elites, ambience, and extraction beats
+- visual polish pass for district signage, VFX hierarchy, lighting contrast, and hero screenshots
+- formal playtest checklist covering onboarding, difficulty spikes, performance, input clarity, and fail-state frustration
+- tracked performance targets for desktop browser review hardware with known hotspots called out
+
+Exit gate:
+
+- a clean review build can be captured, replayed, and watched end to end without obvious placeholder-feeling presentation gaps
+
+### Milestone 5: Demo packaging and launch-readiness review
+
+Goal: convert the polished slice into a release-facing demo candidate.
+
+Must ship in this milestone:
+
+- title, store-description, screenshot, trailer-beat, and feature-bullet draft pack
+- review-pack checklist for build hash, route URLs, known issues, reset behaviour, and capture guidance
+- bug triage pass focused on progression blockers, readability failures, and performance regressions
+- go/no-go review against product pillars, onboarding quality, content depth, and replayability
+
+Exit gate:
+
+- the build is credible enough to hand to external testers or a festival-style review audience without needing live explanation to excuse missing fundamentals
+
+## Production workstreams
+
+### Design and systems
+
+- weapon identity
+- enemy role separation
+- contract ladder
+- progression economy
+- difficulty and pacing
+
+### Content and fiction
+
+- flagship contract scripting
+- boss and setpiece beats
+- faction flavour
+- codex and run-summary writing
+
+### UX and frontend
+
+- shell clarity
+- onboarding flow
+- accessibility and readability settings
+- controller and keyboard parity
+
+### Audio and art
+
+- weapon and shield sound kit
+- ambient district layers
+- music stem plan
+- screenshot and key-art target list
+
+### Production and QA
+
+- review-pack upkeep
+- performance budgets
+- playtest script
+- known-issues discipline
+- release checklist
+
+## Recommended next slice
+
+Do not start a new game. Push `Neon District` through `Milestone 1: Combat identity lock` and define the exact acceptance checklist for:
+
+- weapon family differentiation
+- enemy role readability
+- one authored cover-and-hazard arena
+- the playtest questions that decide whether the combat is truly worth scaling up
+
+Execution reference:
+
+- [`MILESTONE-1-COMBAT-IDENTITY-CHECKLIST-2026-05-02.md`](./MILESTONE-1-COMBAT-IDENTITY-CHECKLIST-2026-05-02.md) is the current pass/fail gate for this milestone and should be used before opening more expansion work.
+- [`MILESTONE-2-FLAGSHIP-CONTRACT-BRIEF-2026-05-03.md`](./MILESTONE-2-FLAGSHIP-CONTRACT-BRIEF-2026-05-03.md) defines the chosen flagship route, acceptance gates, and lane handoffs for the next slice once Milestone 1 is closed.

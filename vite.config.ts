@@ -1,19 +1,25 @@
 import { defineConfig } from "vite";
 
+// Build target switching:
+// - default: GitHub Pages at /neon-district/
+// - VITE_TARGET=crazygames: portable iframe build with relative base
+const target = process.env.VITE_TARGET ?? "github-pages";
+const base = target === "crazygames" ? "./" : "/neon-district/";
+
 export default defineConfig({
   // GitHub Pages serves this project from /neon-district/ rather than the domain root.
-  base: "/neon-district/",
+  // CrazyGames iframes require a relative base — set VITE_TARGET=crazygames at build time.
+  base,
   build: {
-    // Phaser is a large runtime dependency for this prototype, so keep it isolated from
-    // the game code and raise the warning ceiling to avoid noisy false positives.
-    chunkSizeWarningLimit: 1400,
-    rollupOptions: {
+    // Keep a real warning budget in place so delivery regressions stay visible during build.
+    chunkSizeWarningLimit: 900,
+    rolldownOptions: {
+      checks: {
+        // The Phaser chunk warning is gone; keep build output focused on actionable delivery issues.
+        pluginTimings: false,
+      },
       output: {
         manualChunks(id) {
-          if (id.includes("phaser")) {
-            return "phaser";
-          }
-
           if (id.includes("node_modules")) {
             return "vendor";
           }
