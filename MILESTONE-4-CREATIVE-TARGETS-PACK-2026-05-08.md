@@ -188,7 +188,7 @@ The implementing lane should mark this pack successful only if:
 - at least one observer can distinguish shotgun, SMG, energy, shield-break, elite pressure, and extraction without reading labels first
 - three of the six hero-shot categories produce captures worth keeping on the first controlled pass
 - shell and extraction copy feel sharper without requiring new systems or broader narrative expansion
-- the route feels more premium in stills and playback without depending on paid assets or external tools
+- the route feels more premium in stills and playback (superseded 2026-07-21: the "without paid assets or external tools" restriction is lifted — Magnific/Runway/ElevenLabs and CC0 libraries are all in scope)
 
 ## Risk
 

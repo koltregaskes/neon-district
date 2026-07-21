@@ -9,7 +9,9 @@ Source evidence:
 
 ## Outcome
 
-Prepare the Milestone 4 presentation layer so `Neon District` can be captured, watched, and judged as a premium browser-first vertical slice without paid asset spend or publishing.
+Prepare the Milestone 4 presentation layer so `Neon District` can be captured, watched, and judged as a premium browser-first vertical slice.
+
+> **Superseded 2026-07-21 — the "no paid asset spend" constraint is lifted.** Kol directed that Magnific, Runway and ElevenLabs be used as fully as possible across the whole portfolio, and free CC0 libraries (Kenney, Quaternius, Poly Haven) are equally in scope. Do not re-impose an asset-spend restriction from this document.
 
 ## Roadmap anchors
 
