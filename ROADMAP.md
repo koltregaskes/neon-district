@@ -157,14 +157,14 @@ Exit gate:
 
 ## Recommended next slice
 
-Do not start a new game. Push `Neon District` through `Milestone 1: Combat identity lock` and define the exact acceptance checklist for:
+Do not start a new game. Push `Neon District` through `Milestone 4: Presentation and playtest hardening` and define the exact acceptance checklist for:
 
-- weapon family differentiation
-- enemy role readability
-- one authored cover-and-hazard arena
-- the playtest questions that decide whether the combat is truly worth scaling up
+- authored audio identity across weapons, shields, elites, ambience, and extraction
+- screenshot-ready shell, district, and combat presentation
+- outsider playtest clarity across onboarding, wipe recovery, and route comprehension
+- review-hardware performance targets, hotspot logging, and review-pack discipline
 
 Execution reference:
 
-- [`MILESTONE-1-COMBAT-IDENTITY-CHECKLIST-2026-05-02.md`](./MILESTONE-1-COMBAT-IDENTITY-CHECKLIST-2026-05-02.md) is the current pass/fail gate for this milestone and should be used before opening more expansion work.
-- [`MILESTONE-2-FLAGSHIP-CONTRACT-BRIEF-2026-05-03.md`](./MILESTONE-2-FLAGSHIP-CONTRACT-BRIEF-2026-05-03.md) defines the chosen flagship route, acceptance gates, and lane handoffs for the next slice once Milestone 1 is closed.
+- [`MILESTONE-4-PRESENTATION-PLAYTEST-BRIEF-2026-05-08.md`](./MILESTONE-4-PRESENTATION-PLAYTEST-BRIEF-2026-05-08.md) defines the current milestone gates, lane split, and implementation order.
+- [`MILESTONE-4-PRESENTATION-PLAYTEST-CHECKLIST-2026-05-08.md`](./MILESTONE-4-PRESENTATION-PLAYTEST-CHECKLIST-2026-05-08.md) is the fixed hardening routine that should be used before opening Milestone 5 demo-packaging work.

@@ -66,6 +66,7 @@ async function runViteBuild() {
   const inlineConfig = mergeConfig(loadedConfig?.config ?? {}, {
     configFile: false,
     root: repoRoot,
+    base: './',
     mode: process.env.NODE_ENV ?? 'production',
   });
 

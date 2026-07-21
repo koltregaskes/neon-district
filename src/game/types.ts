@@ -317,6 +317,7 @@ export interface CampaignState {
   runs: number;
   victories: number;
   highestScore: number;
+  lastSavedAt: string | null;
   completedContracts: ContractId[];
   ownedWeaponUpgrades: WeaponUpgradeId[];
   selectedContractId: ContractId;
@@ -499,6 +500,11 @@ export type SimulationEvent =
       usedShield: boolean;
     }
   | {
+      type: 'shield-contact';
+      shieldBroken: boolean;
+      position: Vector2;
+    }
+  | {
       type: 'sweep-activated';
     }
   | {
@@ -513,6 +519,10 @@ export type SimulationEvent =
   | {
       type: 'elite-spawned';
       callsign: string;
+    }
+  | {
+      type: 'extraction-window';
+      duration: number;
     }
   | {
       type: 'hazard-triggered';

@@ -1,0 +1,120 @@
+{
+  "reviewDate": "2026-05-23",
+  "route": "Dead Signal Choir Heist",
+  "baseUrl": "http://127.0.0.1:4175/neon-district/",
+  "captureMode": "capture-light",
+  "verificationCommand": "cmd /c npm run build && node scripts/log-performance-hotspots.mjs --capture-light",
+  "verdict": "RED",
+  "metrics": [
+    {
+      "label": "briefing-shell",
+      "sampledMs": 3000,
+      "frameCount": 182,
+      "averageMs": 16.488461538396038,
+      "averageFps": 60.64847212527008,
+      "p95Ms": 16.700000000000728,
+      "worstMs": 16.800000000000182,
+      "framesOver16Ms": 36,
+      "framesOver33Ms": 0,
+      "framesOver50Ms": 0,
+      "objectivePhase": null,
+      "districtStatus": null,
+      "threatLevel": null,
+      "enemyCount": null
+    },
+    {
+      "label": "recon-entry",
+      "sampledMs": 4500,
+      "frameCount": 112,
+      "averageMs": 40.294642857142854,
+      "averageFps": 24.81719477066253,
+      "p95Ms": 50.100000000000364,
+      "worstMs": 83.40000000000055,
+      "framesOver16Ms": 111,
+      "framesOver33Ms": 99,
+      "framesOver50Ms": 10,
+      "objectivePhase": "recon",
+      "districtStatus": "District quiet. Recon window open.",
+      "threatLevel": 0,
+      "enemyCount": 0
+    },
+    {
+      "label": "hold-upload",
+      "sampledMs": 4500,
+      "frameCount": 110,
+      "averageMs": 41.27363636369055,
+      "averageFps": 24.228541221527188,
+      "p95Ms": 50.100000000000364,
+      "worstMs": 66.70000000000027,
+      "framesOver16Ms": 109,
+      "framesOver33Ms": 98,
+      "framesOver50Ms": 8,
+      "objectivePhase": "hold-upload",
+      "districtStatus": "Exchange awnings occupied",
+      "threatLevel": 47,
+      "enemyCount": 3
+    },
+    {
+      "label": "extraction-countdown",
+      "sampledMs": 4500,
+      "frameCount": 117,
+      "averageMs": 38.570940170914696,
+      "averageFps": 25.926254210263533,
+      "p95Ms": 50.09999999999991,
+      "worstMs": 66.70000000000073,
+      "framesOver16Ms": 116,
+      "framesOver33Ms": 101,
+      "framesOver50Ms": 7,
+      "objectivePhase": "extract",
+      "districtStatus": "Route contested // Velvet Knife",
+      "threatLevel": 38,
+      "enemyCount": 0
+    }
+  ],
+  "hotspots": [
+    {
+      "phase": "recon-entry",
+      "symptom": "long frame spike",
+      "detail": "83.4ms worst frame, 99 frames over 33ms"
+    },
+    {
+      "phase": "hold-upload",
+      "symptom": "long frame spike",
+      "detail": "66.7ms worst frame, 98 frames over 33ms"
+    },
+    {
+      "phase": "extraction-countdown",
+      "symptom": "long frame spike",
+      "detail": "66.7ms worst frame, 101 frames over 33ms"
+    },
+    {
+      "phase": "capture path",
+      "symptom": "GPU ReadPixels stall warnings",
+      "detail": "4 console warning(s) during review-route capture"
+    }
+  ],
+  "consoleWarnings": [
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x20a4001b9c00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x20a4001b9c00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x20a4001b9c00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x20a4001b9c00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+    }
+  ],
+  "pageErrors": [],
+  "screenshots": [],
+  "previewLogs": {
+    "stdout": "output\\preview-hotspots-2026-05-23-56768.out.log",
+    "stderr": "output\\preview-hotspots-2026-05-23-56768.err.log"
+  }
+}

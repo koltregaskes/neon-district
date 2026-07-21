@@ -1297,6 +1297,7 @@ export class NeonDistrictSimulation {
         this.state.extractionTimeRemaining = this.state.extractionDuration;
         this.state.districtStatus = 'Extraction green';
         this.state.districtSummary = `The ${contract.uploadLabel} landed. Burn for the ${contract.extractionLabel} and hold the exfil ring until the route locks.`;
+        this.emitEvent({ type: 'extraction-window', duration: this.state.extractionDuration });
       }
       return;
     }
@@ -1527,6 +1528,11 @@ export class NeonDistrictSimulation {
             const shielded = dot(incomingDirection, enemy.facing) >= 0.58;
             if (shielded) {
               damage *= (projectile.shieldFrontMultiplier ?? 0.24) * (projectile.shieldBreakMultiplier ?? 1);
+              this.emitEvent({
+                type: 'shield-contact',
+                shieldBroken: enemy.health - damage <= 0,
+                position: { ...enemy.position },
+              });
             }
           }
 

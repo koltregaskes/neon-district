@@ -167,6 +167,12 @@ async function waitForBriefing(page) {
     const board = document.querySelector('#contractBoard .contract-option');
     return Boolean(overlay && !overlay.classList.contains('is-hidden') && board);
   });
+  await page.evaluate(() => {
+    const panel = document.querySelector('.briefing-panel');
+    if (panel instanceof HTMLElement) {
+      panel.scrollTop = 0;
+    }
+  });
   await page.waitForTimeout(400);
 }
 

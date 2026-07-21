@@ -21,6 +21,21 @@ import type {
 } from './types';
 
 const STORAGE_KEY = 'neon-district/campaign-v2';
+const STORAGE_VERSION = 1;
+
+export type CampaignLoadInfo = {
+  source: 'fresh' | 'storage' | 'recovered';
+  detail: string;
+  recovered: boolean;
+  lastSavedAt: string | null;
+};
+
+let campaignLoadInfo: CampaignLoadInfo = {
+  source: 'fresh',
+  detail: 'Fresh live profile. No stored campaign found yet.',
+  recovered: false,
+  lastSavedAt: null,
+};
 
 type CampaignRunInput = {
   contract: ContractDefinition;
@@ -67,6 +82,7 @@ export function createDefaultCampaignState(): CampaignState {
     runs: 0,
     victories: 0,
     highestScore: 0,
+    lastSavedAt: null,
     completedContracts: [],
     ownedWeaponUpgrades: [],
     selectedContractId: DEFAULT_CONTRACT_ID,
@@ -101,6 +117,14 @@ export function hasWeaponUpgrade(state: CampaignState, upgradeId: WeaponUpgradeI
   return state.ownedWeaponUpgrades.includes(upgradeId);
 }
 
+export function getLockedContracts(state: CampaignState) {
+  return CONTRACTS.filter((contract) => !isContractUnlocked(state, contract.id));
+}
+
+export function getLockedCyberware(state: CampaignState) {
+  return CYBERWARE_OPTIONS.filter((option) => !isCyberwareUnlocked(state, option.id));
+}
+
 export function getFallbackContractId(state: CampaignState) {
   return getUnlockedContracts(state)[0]?.id ?? DEFAULT_CONTRACT_ID;
 }
@@ -121,6 +145,64 @@ function sanitizeWeaponUpgradeId(value: unknown): WeaponUpgradeId | null {
 
 function sanitizeFactionKey(value: string): FactionKey | null {
   return value === 'morrow' || value === 'helix' || value === 'glasshouse' ? value : null;
+}
+
+function sanitizeCampaignRunResult(value: unknown): CampaignRunResult | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.contractId !== 'string' || !(value.contractId in CONTRACTS_BY_ID)) return null;
+  if (typeof value.contractTitle !== 'string') return null;
+  if (typeof value.victory !== 'boolean') return null;
+  if (typeof value.timestamp !== 'string') return null;
+  if (typeof value.runtimeSeconds !== 'number') return null;
+  if (typeof value.kills !== 'number') return null;
+  if (typeof value.score !== 'number') return null;
+  if (typeof value.stageLabel !== 'string') return null;
+  if (typeof value.scavengedCredits !== 'number') return null;
+  if (typeof value.payoutCredits !== 'number') return null;
+  if (typeof value.totalCreditsAwarded !== 'number') return null;
+  if (typeof value.bankCredits !== 'number') return null;
+  if (typeof value.reputationDelta !== 'number') return null;
+  if (typeof value.hostileHeatDelta !== 'number') return null;
+  if (typeof value.clientFaction !== 'string' || !sanitizeFactionKey(value.clientFaction)) return null;
+  if (typeof value.hostileFaction !== 'string' || !sanitizeFactionKey(value.hostileFaction)) return null;
+  if (typeof value.eliteDefeated !== 'boolean') return null;
+  if (typeof value.optionalObjectiveCompleted !== 'boolean') return null;
+  if (value.optionalObjectiveLabel !== null && typeof value.optionalObjectiveLabel !== 'string') return null;
+  if (typeof value.optionalObjectiveRewardCredits !== 'number') return null;
+  if (typeof value.optionalObjectiveReputationBonus !== 'number') return null;
+
+  const unlocks = Array.isArray(value.unlocks)
+    ? value.unlocks.filter((unlockId): unlockId is CyberwareId => typeof unlockId === 'string' && unlockId in CYBERWARE_BY_ID)
+    : [];
+  const contractUnlocks = Array.isArray(value.contractUnlocks)
+    ? value.contractUnlocks.filter((unlockId): unlockId is ContractId => typeof unlockId === 'string' && unlockId in CONTRACTS_BY_ID)
+    : [];
+
+  return {
+    contractId: value.contractId as ContractId,
+    contractTitle: value.contractTitle,
+    victory: value.victory,
+    timestamp: value.timestamp,
+    runtimeSeconds: Math.max(0, Math.round(value.runtimeSeconds)),
+    kills: Math.max(0, Math.round(value.kills)),
+    score: Math.max(0, Math.round(value.score)),
+    stageLabel: value.stageLabel,
+    scavengedCredits: Math.max(0, Math.round(value.scavengedCredits)),
+    payoutCredits: Math.max(0, Math.round(value.payoutCredits)),
+    totalCreditsAwarded: Math.max(0, Math.round(value.totalCreditsAwarded)),
+    bankCredits: Math.max(0, Math.round(value.bankCredits)),
+    reputationDelta: Math.round(value.reputationDelta),
+    hostileHeatDelta: Math.max(0, Math.round(value.hostileHeatDelta)),
+    clientFaction: value.clientFaction as FactionKey,
+    hostileFaction: value.hostileFaction as FactionKey,
+    eliteDefeated: value.eliteDefeated,
+    optionalObjectiveCompleted: value.optionalObjectiveCompleted,
+    optionalObjectiveLabel: value.optionalObjectiveLabel,
+    optionalObjectiveRewardCredits: Math.max(0, Math.round(value.optionalObjectiveRewardCredits)),
+    optionalObjectiveReputationBonus: Math.round(value.optionalObjectiveReputationBonus),
+    unlocks,
+    contractUnlocks,
+  };
 }
 
 function sanitizeCampaignState(value: unknown): CampaignState {
@@ -155,19 +237,22 @@ function sanitizeCampaignState(value: unknown): CampaignState {
   const selectedCyberwareId = typeof value.selectedCyberwareId === 'string' && value.selectedCyberwareId in CYBERWARE_BY_ID
     ? value.selectedCyberwareId as CyberwareId
     : defaults.selectedCyberwareId;
+  const lastSavedAt = typeof value.lastSavedAt === 'string' ? value.lastSavedAt : null;
+  const lastResult = sanitizeCampaignRunResult(value.lastResult);
 
   const candidate: CampaignState = {
     bankCredits: typeof value.bankCredits === 'number' ? Math.max(0, Math.round(value.bankCredits)) : defaults.bankCredits,
     runs: typeof value.runs === 'number' ? Math.max(0, Math.round(value.runs)) : defaults.runs,
     victories: typeof value.victories === 'number' ? Math.max(0, Math.round(value.victories)) : defaults.victories,
     highestScore: typeof value.highestScore === 'number' ? Math.max(0, Math.round(value.highestScore)) : defaults.highestScore,
+    lastSavedAt,
     completedContracts,
     ownedWeaponUpgrades,
     selectedContractId,
     selectedWeapon: sanitizeWeapon(value.selectedWeapon),
     selectedCyberwareId,
     factions,
-    lastResult: null,
+    lastResult,
   };
 
   if (!isContractUnlocked(candidate, candidate.selectedContractId)) {
@@ -184,19 +269,67 @@ function sanitizeCampaignState(value: unknown): CampaignState {
 export function loadCampaignState(): CampaignState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createDefaultCampaignState();
-    return sanitizeCampaignState(JSON.parse(raw));
+    if (!raw) {
+      const fresh = createDefaultCampaignState();
+      campaignLoadInfo = {
+        source: 'fresh',
+        detail: 'Fresh live profile. No stored campaign found yet.',
+        recovered: false,
+        lastSavedAt: fresh.lastSavedAt,
+      };
+      return fresh;
+    }
+
+    const parsed = JSON.parse(raw);
+    const sanitized = sanitizeCampaignState(parsed);
+    const looksVersioned = isRecord(parsed) && typeof parsed.storageVersion === 'number';
+    const recovered = !looksVersioned && sanitized.lastSavedAt === null;
+    campaignLoadInfo = {
+      source: recovered ? 'recovered' : 'storage',
+      detail: recovered
+        ? 'Recovered an older or partial local save into the current safe profile format.'
+        : 'Loaded the live profile from local browser storage.',
+      recovered,
+      lastSavedAt: sanitized.lastSavedAt,
+    };
+    return sanitized;
   } catch {
-    return createDefaultCampaignState();
+    const recovered = createDefaultCampaignState();
+    campaignLoadInfo = {
+      source: 'recovered',
+      detail: 'Stored campaign data was unreadable. Neon District fell back to a clean safe profile.',
+      recovered: true,
+      lastSavedAt: null,
+    };
+    return recovered;
   }
 }
 
+export function getCampaignLoadInfo() {
+  return campaignLoadInfo;
+}
+
 export function saveCampaignState(state: CampaignState) {
+  const nextState: CampaignState = {
+    ...state,
+    lastSavedAt: new Date().toISOString(),
+  };
+
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      storageVersion: STORAGE_VERSION,
+      ...nextState,
+    }));
+    campaignLoadInfo = {
+      source: 'storage',
+      detail: 'Loaded the live profile from local browser storage.',
+      recovered: false,
+      lastSavedAt: nextState.lastSavedAt,
+    };
   } catch {
     // Ignore storage failures in restricted browser contexts.
   }
+  return nextState;
 }
 
 export function resetCampaignState() {

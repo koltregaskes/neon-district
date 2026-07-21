@@ -18,6 +18,19 @@ type FxBurst = {
   maxLife: number;
 };
 
+type RenderProfile = {
+  gridRadius: number;
+  obstacleCullPadding: number;
+  rainLineCount: number;
+  drawSkylineMarkers: boolean;
+  drawBeaconPoints: boolean;
+  obstacleWindowStride: number;
+  drawObstacleSigns: boolean;
+  drawSecondaryObjectiveRing: boolean;
+  drawHazardInnerRing: boolean;
+  drawHazardBeacons: boolean;
+};
+
 type KeyMap = {
   W: Phaser.Input.Keyboard.Key;
   A: Phaser.Input.Keyboard.Key;
@@ -59,10 +72,50 @@ const BEACON_POINTS = [
   { x: 690, y: 1260, color: 0x6db8ff },
 ];
 
+const SHELL_RENDER_PROFILE: RenderProfile = {
+  gridRadius: 900,
+  obstacleCullPadding: 260,
+  rainLineCount: 34,
+  drawSkylineMarkers: true,
+  drawBeaconPoints: true,
+  obstacleWindowStride: 1,
+  drawObstacleSigns: true,
+  drawSecondaryObjectiveRing: true,
+  drawHazardInnerRing: true,
+  drawHazardBeacons: true,
+};
+
+const COMBAT_RENDER_PROFILE: RenderProfile = {
+  gridRadius: 660,
+  obstacleCullPadding: 180,
+  rainLineCount: 12,
+  drawSkylineMarkers: false,
+  drawBeaconPoints: false,
+  obstacleWindowStride: 2,
+  drawObstacleSigns: false,
+  drawSecondaryObjectiveRing: true,
+  drawHazardInnerRing: true,
+  drawHazardBeacons: true,
+};
+
+const HOT_PHASE_RENDER_PROFILE: RenderProfile = {
+  gridRadius: 560,
+  obstacleCullPadding: 160,
+  rainLineCount: 6,
+  drawSkylineMarkers: false,
+  drawBeaconPoints: false,
+  obstacleWindowStride: 3,
+  drawObstacleSigns: false,
+  drawSecondaryObjectiveRing: false,
+  drawHazardInnerRing: false,
+  drawHazardBeacons: false,
+};
+
 export class GameScene extends Phaser.Scene {
   private readonly simulation: NeonDistrictSimulation;
   private readonly dispatchHud: HudDispatch;
   private readonly dispatchEvents: EventDispatch;
+  private staticGraphics!: Phaser.GameObjects.Graphics;
   private graphics!: Phaser.GameObjects.Graphics;
   private gameOverTitle!: Phaser.GameObjects.Text;
   private gameOverBody!: Phaser.GameObjects.Text;
@@ -74,6 +127,11 @@ export class GameScene extends Phaser.Scene {
   private lastHudUpdate = 0;
   private trauma = 0;
   private fxBursts: FxBurst[] = [];
+  private cachedStaticProfile: RenderProfile | null = null;
+  private cachedStaticCameraTarget: Vector2 | null = null;
+  private cachedStaticAnchor: Vector2 | null = null;
+  private cachedViewportWidth = 0;
+  private cachedViewportHeight = 0;
 
   constructor(simulation: NeonDistrictSimulation, dispatchHud: HudDispatch, dispatchEvents: EventDispatch) {
     super('district-run');
@@ -83,7 +141,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.staticGraphics = this.add.graphics();
     this.graphics = this.add.graphics();
+    this.staticGraphics.setDepth(0);
+    this.graphics.setDepth(1);
     this.gameOverTitle = this.add.text(0, 0, 'RUN FLATLINED', {
       fontFamily: '"Bahnschrift", "Segoe UI", sans-serif',
       fontSize: '34px',
@@ -98,7 +159,10 @@ export class GameScene extends Phaser.Scene {
     }).setDepth(10).setVisible(false);
     this.keys = this.input.keyboard!.addKeys('W,A,S,D,SHIFT,SPACE,Q,E,R') as KeyMap;
     this.input.mouse?.disableContextMenu();
-    this.scale.on('resize', () => this.renderScene(), this);
+    this.scale.on('resize', () => {
+      this.invalidateStaticLayer();
+      this.renderScene();
+    }, this);
     this.renderScene();
     this.dispatchHud(this.simulation.createHudSnapshot());
   }
@@ -202,7 +266,123 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private drawPrism(obstacle: ArenaObstacle, anchorX: number, anchorY: number, cameraTarget: Vector2) {
+  private getRenderProfile() {
+    const state = this.simulation.getState();
+    if (state.objectivePhase === 'hold-upload' || state.objectivePhase === 'extract') {
+      return HOT_PHASE_RENDER_PROFILE;
+    }
+    if (state.combatActive || state.activeHazards.length > 0 || state.enemies.length > 0) {
+      return COMBAT_RENDER_PROFILE;
+    }
+    return SHELL_RENDER_PROFILE;
+  }
+
+  private isVisible(point: Vector2, paddingX: number, paddingY: number) {
+    return point.x >= -paddingX
+      && point.x <= this.scale.width + paddingX
+      && point.y >= -paddingY
+      && point.y <= this.scale.height + paddingY;
+  }
+
+  private withGraphics(target: Phaser.GameObjects.Graphics, draw: () => void) {
+    const previous = this.graphics;
+    this.graphics = target;
+    try {
+      draw();
+    } finally {
+      this.graphics = previous;
+    }
+  }
+
+  private invalidateStaticLayer() {
+    this.cachedStaticProfile = null;
+    this.cachedStaticCameraTarget = null;
+    this.cachedStaticAnchor = null;
+    this.cachedViewportWidth = 0;
+    this.cachedViewportHeight = 0;
+  }
+
+  private shouldRefreshStaticLayer(renderProfile: RenderProfile, cameraTarget: Vector2, anchorX: number, anchorY: number) {
+    if (!this.cachedStaticProfile || !this.cachedStaticCameraTarget || !this.cachedStaticAnchor) {
+      return true;
+    }
+
+    if (this.cachedViewportWidth !== this.scale.width || this.cachedViewportHeight !== this.scale.height) {
+      return true;
+    }
+
+    if (this.cachedStaticProfile !== renderProfile) {
+      return true;
+    }
+
+    if (this.trauma > 0.015) {
+      return true;
+    }
+
+    const cameraDelta = Math.abs(cameraTarget.x - this.cachedStaticCameraTarget.x) + Math.abs(cameraTarget.y - this.cachedStaticCameraTarget.y);
+    if (cameraDelta >= 12) {
+      return true;
+    }
+
+    const anchorDelta = Math.abs(anchorX - this.cachedStaticAnchor.x) + Math.abs(anchorY - this.cachedStaticAnchor.y);
+    return anchorDelta >= 2.5;
+  }
+
+  private drawStaticLayer(anchorX: number, anchorY: number, cameraTarget: Vector2, renderProfile: RenderProfile) {
+    this.withGraphics(this.staticGraphics, () => {
+      this.staticGraphics.clear();
+      this.graphics.fillGradientStyle(0x040611, 0x040611, 0x090e1c, 0x090e1c, 1, 1, 1, 1);
+      this.graphics.fillRect(0, 0, this.scale.width, this.scale.height);
+
+      const gridRadius = renderProfile.gridRadius;
+      const gridStartX = Math.floor((cameraTarget.x - gridRadius) / 180) * 180;
+      const gridEndX = Math.ceil((cameraTarget.x + gridRadius) / 180) * 180;
+      const gridStartY = Math.floor((cameraTarget.y - gridRadius) / 180) * 180;
+      const gridEndY = Math.ceil((cameraTarget.y + gridRadius) / 180) * 180;
+
+      for (let gx = gridStartX; gx <= gridEndX; gx += 180) {
+        for (let gy = gridStartY; gy <= gridEndY; gy += 180) {
+          if (gx < -180 || gy < -180 || gx > WORLD_WIDTH + 180 || gy > WORLD_HEIGHT + 180) continue;
+          const tilePoint = this.projectPoint({ x: gx, y: gy }, anchorX, anchorY, cameraTarget);
+          if (!this.isVisible(tilePoint, 180, 120)) continue;
+          const pattern = ((gx / 180) + (gy / 180)) % 2 === 0;
+          this.drawDiamond(tilePoint, 208, 104, pattern ? 0x0b1120 : 0x09101c, 0.76, pattern ? 0x16324a : 0x10263b, 0.25);
+        }
+      }
+
+      LANE_FEATURES.forEach((lane) => {
+        const lanePoint = this.projectPoint({ x: lane.x, y: lane.y }, anchorX, anchorY, cameraTarget);
+        this.drawDiamond(lanePoint, lane.width * ISO_HALF_WIDTH, lane.height * ISO_HALF_HEIGHT, lane.color, 0.94, 0x244663, 0.34);
+      });
+
+      if (renderProfile.drawBeaconPoints) {
+        BEACON_POINTS.forEach((beacon) => {
+          const base = this.projectPoint({ x: beacon.x, y: beacon.y }, anchorX, anchorY, cameraTarget, 28);
+          if (!this.isVisible(base, 40, 40)) return;
+          this.graphics.fillStyle(beacon.color, 0.18);
+          this.graphics.fillEllipse(base.x, base.y, 28, 18);
+          this.graphics.lineStyle(2, beacon.color, 0.85);
+          this.graphics.strokeEllipse(base.x, base.y, 18, 10);
+        });
+      }
+
+      SORTED_DISTRICT_OBSTACLES.forEach((obstacle) => this.drawPrism(obstacle, anchorX, anchorY, cameraTarget, renderProfile));
+    });
+
+    this.cachedStaticProfile = renderProfile;
+    this.cachedStaticCameraTarget = { ...cameraTarget };
+    this.cachedStaticAnchor = { x: anchorX, y: anchorY };
+    this.cachedViewportWidth = this.scale.width;
+    this.cachedViewportHeight = this.scale.height;
+  }
+
+  private drawPrism(
+    obstacle: ArenaObstacle,
+    anchorX: number,
+    anchorY: number,
+    cameraTarget: Vector2,
+    renderProfile: RenderProfile,
+  ) {
     const halfW = obstacle.width / 2;
     const halfD = obstacle.depth / 2;
     const baseNE = this.projectPoint({ x: obstacle.x + halfW, y: obstacle.y - halfD }, anchorX, anchorY, cameraTarget);
@@ -212,6 +392,19 @@ export class GameScene extends Phaser.Scene {
     const topNE = this.projectPoint({ x: obstacle.x + halfW, y: obstacle.y - halfD }, anchorX, anchorY, cameraTarget, obstacle.height);
     const topSE = this.projectPoint({ x: obstacle.x + halfW, y: obstacle.y + halfD }, anchorX, anchorY, cameraTarget, obstacle.height);
     const topSW = this.projectPoint({ x: obstacle.x - halfW, y: obstacle.y + halfD }, anchorX, anchorY, cameraTarget, obstacle.height);
+    const visible = [
+      baseNE,
+      baseSE,
+      baseSW,
+      topNW,
+      topNE,
+      topSE,
+      topSW,
+    ].some((point) => this.isVisible(point, renderProfile.obstacleCullPadding, renderProfile.obstacleCullPadding));
+
+    if (!visible) {
+      return;
+    }
 
     const fill = Phaser.Display.Color.HexStringToColor(obstacle.fill).color;
     const glow = Phaser.Display.Color.HexStringToColor(obstacle.glow).color;
@@ -254,7 +447,7 @@ export class GameScene extends Phaser.Scene {
 
     const windowCount = Math.max(2, Math.floor(obstacle.height / 28));
     this.graphics.lineStyle(2, glow, 0.22);
-    for (let index = 0; index < windowCount; index += 1) {
+    for (let index = 0; index < windowCount; index += renderProfile.obstacleWindowStride) {
       const t = (index + 1) / (windowCount + 1);
       const leftX = Phaser.Math.Linear(baseSW.x, topSW.x, t);
       const leftY = Phaser.Math.Linear(baseSW.y, topSW.y, t);
@@ -266,7 +459,7 @@ export class GameScene extends Phaser.Scene {
       this.graphics.strokePath();
     }
 
-    if (obstacle.height >= 80) {
+    if (renderProfile.drawObstacleSigns && obstacle.height >= 80) {
       const signPoint = this.projectPoint({ x: obstacle.x, y: obstacle.y }, anchorX, anchorY, cameraTarget, obstacle.height + 26);
       this.graphics.fillStyle(0x03070d, 0.78);
       this.graphics.fillRoundedRect(signPoint.x - 44, signPoint.y - 10, 88, 22, 8);
@@ -458,7 +651,13 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private drawAtmosphere(anchorX: number, anchorY: number, cameraTarget: Vector2, timeSeconds: number) {
+  private drawAtmosphere(
+    anchorX: number,
+    anchorY: number,
+    cameraTarget: Vector2,
+    timeSeconds: number,
+    renderProfile: RenderProfile,
+  ) {
     ATMOSPHERE_FOG_BANKS.forEach((bank, index) => {
       const point = this.projectPoint(
         { x: bank.x + Math.sin(timeSeconds * 0.22 + index) * 24, y: bank.y + Math.cos(timeSeconds * 0.18 + index) * 18 },
@@ -470,16 +669,18 @@ export class GameScene extends Phaser.Scene {
       this.graphics.fillEllipse(point.x, point.y, bank.radiusX, bank.radiusY);
     });
 
-    SKYLINE_MARKERS.forEach((marker, index) => {
-      const point = this.projectPoint({ x: marker.x, y: marker.y }, anchorX, anchorY, cameraTarget, marker.height);
-      this.graphics.fillStyle(marker.color, 0.42);
-      this.graphics.fillRoundedRect(point.x - marker.width / 2, point.y, marker.width, marker.height, 18);
-      this.graphics.fillStyle(index % 2 === 0 ? 0x30eeff : 0xff76d8, 0.14);
-      this.graphics.fillRect(point.x - marker.width / 3, point.y + 28, marker.width / 1.5, marker.height - 58);
-    });
+    if (renderProfile.drawSkylineMarkers) {
+      SKYLINE_MARKERS.forEach((marker, index) => {
+        const point = this.projectPoint({ x: marker.x, y: marker.y }, anchorX, anchorY, cameraTarget, marker.height);
+        this.graphics.fillStyle(marker.color, 0.42);
+        this.graphics.fillRoundedRect(point.x - marker.width / 2, point.y, marker.width, marker.height, 18);
+        this.graphics.fillStyle(index % 2 === 0 ? 0x30eeff : 0xff76d8, 0.14);
+        this.graphics.fillRect(point.x - marker.width / 3, point.y + 28, marker.width / 1.5, marker.height - 58);
+      });
+    }
 
     this.graphics.lineStyle(1, 0x7ceaff, 0.18);
-    for (let index = 0; index < 34; index += 1) {
+    for (let index = 0; index < renderProfile.rainLineCount; index += 1) {
       const x = ((index * 72) + (timeSeconds * 180)) % (this.scale.width + 180);
       const y = (index * 39) % this.scale.height;
       this.graphics.beginPath();
@@ -492,12 +693,16 @@ export class GameScene extends Phaser.Scene {
   private drawFxBursts(anchorX: number, anchorY: number, cameraTarget: Vector2) {
     this.fxBursts.forEach((burst) => {
       const point = this.projectPoint(burst.position, anchorX, anchorY, cameraTarget, 18);
+      const radius = burst.radius * 1.9;
+      if (!this.isVisible(point, radius, radius)) {
+        return;
+      }
       const alpha = burst.life / burst.maxLife;
-      const radius = burst.radius * (1 + (1 - alpha) * 0.7);
+      const scaledRadius = burst.radius * (1 + (1 - alpha) * 0.7);
       this.graphics.lineStyle(3, burst.color, alpha * 0.8);
-      this.graphics.strokeEllipse(point.x, point.y, radius, radius * 0.65);
+      this.graphics.strokeEllipse(point.x, point.y, scaledRadius, scaledRadius * 0.65);
       this.graphics.fillStyle(burst.color, alpha * 0.08);
-      this.graphics.fillEllipse(point.x, point.y, radius * 0.7, radius * 0.42);
+      this.graphics.fillEllipse(point.x, point.y, scaledRadius * 0.7, scaledRadius * 0.42);
     });
   }
 
@@ -506,6 +711,7 @@ export class GameScene extends Phaser.Scene {
     anchorX: number,
     anchorY: number,
     cameraTarget: Vector2,
+    renderProfile: RenderProfile,
     color: number,
     radius: number,
     pulseSeed: number,
@@ -522,82 +728,66 @@ export class GameScene extends Phaser.Scene {
     this.drawDiamond(beacon, active ? 34 : 26, active ? 22 : 18, color, active ? 0.5 : 0.28, color, active ? 0.88 : 0.46);
     this.graphics.lineStyle(2, color, active ? 0.42 : 0.2);
     this.graphics.strokeEllipse(base.x, base.y, radius * ISO_HALF_WIDTH * 1.05 * pulse, radius * ISO_HALF_HEIGHT * 1.55 * pulse);
-    this.graphics.strokeEllipse(base.x, base.y, radius * ISO_HALF_WIDTH * 1.45 * pulse, radius * ISO_HALF_HEIGHT * 2.05 * pulse);
+    if (renderProfile.drawSecondaryObjectiveRing) {
+      this.graphics.strokeEllipse(base.x, base.y, radius * ISO_HALF_WIDTH * 1.45 * pulse, radius * ISO_HALF_HEIGHT * 2.05 * pulse);
+    }
   }
 
-  private drawHazardZone(hazard: HazardState, anchorX: number, anchorY: number, cameraTarget: Vector2) {
+  private drawHazardZone(hazard: HazardState, anchorX: number, anchorY: number, cameraTarget: Vector2, renderProfile: RenderProfile) {
     const point = this.projectPoint(hazard.position, anchorX, anchorY, cameraTarget, 4);
     const color = Phaser.Display.Color.HexStringToColor(hazard.color).color;
     const pulse = 0.94 + Math.sin(statefulTime(this.simulation.getState().timeSeconds, hazard.id) * 4.2) * 0.08;
     const radiusX = hazard.radius * ISO_HALF_WIDTH * pulse;
     const radiusY = hazard.radius * ISO_HALF_HEIGHT * 1.55 * pulse;
+    if (!this.isVisible(point, radiusX + 40, radiusY + 40)) {
+      return;
+    }
     const lifeRatio = Phaser.Math.Clamp(hazard.remaining / Math.max(hazard.maxDuration, 0.001), 0, 1);
     const ringAlpha = 0.18 + (1 - lifeRatio) * 0.08;
+    const hotPhaseProfile = renderProfile === HOT_PHASE_RENDER_PROFILE;
 
     if (hazard.kind === 'blackout') {
-      this.graphics.fillStyle(0x02040a, 0.34);
+      this.graphics.fillStyle(0x02040a, hotPhaseProfile ? 0.28 : 0.34);
       this.graphics.fillEllipse(point.x, point.y, radiusX * 0.95, radiusY * 0.95);
     } else {
-      this.graphics.fillStyle(color, 0.1);
-      this.graphics.fillEllipse(point.x, point.y, radiusX * 0.9, radiusY * 0.9);
+      this.graphics.fillStyle(color, hotPhaseProfile ? 0.07 : 0.1);
+      this.graphics.fillEllipse(point.x, point.y, radiusX * 0.82, radiusY * 0.82);
     }
 
     this.graphics.lineStyle(2, color, ringAlpha + 0.18);
     this.graphics.strokeEllipse(point.x, point.y, radiusX, radiusY);
-    this.graphics.lineStyle(2, color, ringAlpha);
-    this.graphics.strokeEllipse(point.x, point.y, radiusX * 0.72, radiusY * 0.72);
+    if (renderProfile.drawHazardInnerRing) {
+      this.graphics.lineStyle(2, color, ringAlpha);
+      this.graphics.strokeEllipse(point.x, point.y, radiusX * 0.72, radiusY * 0.72);
+    }
 
-    const beacon = this.projectPoint(hazard.position, anchorX, anchorY, cameraTarget, 52);
-    this.graphics.lineStyle(2, color, 0.28);
-    this.graphics.beginPath();
-    this.graphics.moveTo(point.x, point.y);
-    this.graphics.lineTo(beacon.x, beacon.y + 10);
-    this.graphics.strokePath();
-    this.drawDiamond(beacon, 28, 18, color, 0.3, color, 0.7);
+    if (renderProfile.drawHazardBeacons) {
+      const beacon = this.projectPoint(hazard.position, anchorX, anchorY, cameraTarget, 52);
+      this.graphics.lineStyle(2, color, 0.28);
+      this.graphics.beginPath();
+      this.graphics.moveTo(point.x, point.y);
+      this.graphics.lineTo(beacon.x, beacon.y + 10);
+      this.graphics.strokePath();
+      this.drawDiamond(beacon, 28, 18, color, 0.3, color, 0.7);
+    }
   }
 
   private renderScene() {
     const state = this.simulation.getState();
+    const renderProfile = this.getRenderProfile();
     const shake = this.trauma * this.trauma * 18;
     const anchorX = this.scale.width * 0.5 + Math.sin(state.timeSeconds * 83) * shake;
     const anchorY = this.scale.height * 0.57 + Math.cos(state.timeSeconds * 71) * shake;
     const cameraTarget = state.player.position;
 
+    if (this.shouldRefreshStaticLayer(renderProfile, cameraTarget, anchorX, anchorY)) {
+      this.drawStaticLayer(anchorX, anchorY, cameraTarget, renderProfile);
+    }
+
     this.graphics.clear();
     this.gameOverTitle.setVisible(false);
     this.gameOverBody.setVisible(false);
-    this.graphics.fillGradientStyle(0x040611, 0x040611, 0x090e1c, 0x090e1c, 1, 1, 1, 1);
-    this.graphics.fillRect(0, 0, this.scale.width, this.scale.height);
-    this.drawAtmosphere(anchorX, anchorY, cameraTarget, state.timeSeconds);
-
-    const gridStartX = Math.floor((cameraTarget.x - 900) / 180) * 180;
-    const gridEndX = Math.ceil((cameraTarget.x + 900) / 180) * 180;
-    const gridStartY = Math.floor((cameraTarget.y - 900) / 180) * 180;
-    const gridEndY = Math.ceil((cameraTarget.y + 900) / 180) * 180;
-
-    for (let gx = gridStartX; gx <= gridEndX; gx += 180) {
-      for (let gy = gridStartY; gy <= gridEndY; gy += 180) {
-        if (gx < -180 || gy < -180 || gx > WORLD_WIDTH + 180 || gy > WORLD_HEIGHT + 180) continue;
-        const tilePoint = this.projectPoint({ x: gx, y: gy }, anchorX, anchorY, cameraTarget);
-        const pattern = ((gx / 180) + (gy / 180)) % 2 === 0;
-        this.drawDiamond(tilePoint, 208, 104, pattern ? 0x0b1120 : 0x09101c, 0.76, pattern ? 0x16324a : 0x10263b, 0.25);
-      }
-    }
-
-    LANE_FEATURES.forEach((lane) => {
-      const lanePoint = this.projectPoint({ x: lane.x, y: lane.y }, anchorX, anchorY, cameraTarget);
-      this.drawDiamond(lanePoint, lane.width * ISO_HALF_WIDTH, lane.height * ISO_HALF_HEIGHT, lane.color, 0.94, 0x244663, 0.34);
-    });
-
-    BEACON_POINTS.forEach((beacon) => {
-      const base = this.projectPoint({ x: beacon.x, y: beacon.y }, anchorX, anchorY, cameraTarget, 28);
-      this.graphics.fillStyle(beacon.color, 0.18);
-      this.graphics.fillEllipse(base.x, base.y, 28, 18);
-      this.graphics.lineStyle(2, beacon.color, 0.85);
-      this.graphics.strokeEllipse(base.x, base.y, 18, 10);
-    });
-
-    SORTED_DISTRICT_OBSTACLES.forEach((obstacle) => this.drawPrism(obstacle, anchorX, anchorY, cameraTarget));
+    this.drawAtmosphere(anchorX, anchorY, cameraTarget, state.timeSeconds, renderProfile);
 
     const terminalActive = state.objectivePhase === 'reach-terminal' || state.objectivePhase === 'hack-terminal' || state.objectivePhase === 'hold-upload';
     const extractionActive = state.objectivePhase === 'extract' || state.victory;
@@ -608,6 +798,7 @@ export class GameScene extends Phaser.Scene {
       anchorX,
       anchorY,
       cameraTarget,
+      renderProfile,
       terminalActive ? 0x24f0ff : 0x1e6a83,
       state.terminalRadius,
       0,
@@ -618,6 +809,7 @@ export class GameScene extends Phaser.Scene {
       anchorX,
       anchorY,
       cameraTarget,
+      renderProfile,
       extractionActive ? 0x7affb8 : 0x2d6f54,
       state.extractionRadius,
       1.3,
@@ -629,6 +821,7 @@ export class GameScene extends Phaser.Scene {
         anchorX,
         anchorY,
         cameraTarget,
+        renderProfile,
         optionalObjectiveActive ? 0xffc96a : 0x7d5d28,
         state.optionalObjectiveRadius,
         2.1,
@@ -636,7 +829,7 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    state.activeHazards.forEach((hazard) => this.drawHazardZone(hazard, anchorX, anchorY, cameraTarget));
+    state.activeHazards.forEach((hazard) => this.drawHazardZone(hazard, anchorX, anchorY, cameraTarget, renderProfile));
 
     this.drawFxBursts(anchorX, anchorY, cameraTarget);
 

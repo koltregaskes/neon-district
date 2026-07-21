@@ -96,6 +96,10 @@ Milestone review gates:
 - [`MILESTONE-1-COMBAT-IDENTITY-CHECKLIST-2026-05-02.md`](./MILESTONE-1-COMBAT-IDENTITY-CHECKLIST-2026-05-02.md)
 - [`MILESTONE-2-FLAGSHIP-CONTRACT-BRIEF-2026-05-03.md`](./MILESTONE-2-FLAGSHIP-CONTRACT-BRIEF-2026-05-03.md)
 - [`MILESTONE-2-FLAGSHIP-REVIEW-CHECKLIST-2026-05-03.md`](./MILESTONE-2-FLAGSHIP-REVIEW-CHECKLIST-2026-05-03.md)
+- [`MILESTONE-3-PROGRESSION-SAVE-BRIEF-2026-05-05.md`](./MILESTONE-3-PROGRESSION-SAVE-BRIEF-2026-05-05.md)
+- [`MILESTONE-3-PROGRESSION-SAVE-CHECKLIST-2026-05-05.md`](./MILESTONE-3-PROGRESSION-SAVE-CHECKLIST-2026-05-05.md)
+- [`MILESTONE-4-PRESENTATION-PLAYTEST-BRIEF-2026-05-08.md`](./MILESTONE-4-PRESENTATION-PLAYTEST-BRIEF-2026-05-08.md)
+- [`MILESTONE-4-PRESENTATION-PLAYTEST-CHECKLIST-2026-05-08.md`](./MILESTONE-4-PRESENTATION-PLAYTEST-CHECKLIST-2026-05-08.md)
 
 ## Controls
 
@@ -125,8 +129,8 @@ That keeps us moving quickly while we build toward denser districts, better comb
 
 ## Next priorities
 
-- cache more static world rendering in the Phaser scene to reduce per-frame redraw cost
-- author a fourth bespoke mission with a moving objective, such as convoy interception or a mobile escort breach
-- add broader contract variety, boss beats, and stronger authored faction fiction
-- deepen armory and cyberware progression beyond the first permanent upgrades
-- keep using the browser build as the fast combat sandbox while the desktop production version is defined
+- lock Milestone 4 audio targets for weapons, shields, elites, ambience, and extraction
+- harden screenshot-ready shell and combat presentation around the featured authored route
+- run a formal outsider playtest checklist that tests onboarding, route comprehension, wipe recovery, and input clarity
+- log review-hardware performance targets and named hotspots before Milestone 5 demo packaging
+- keep using the browser build as the fast review and hardening surface while the larger desktop product target stays defined

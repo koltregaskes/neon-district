@@ -12,6 +12,11 @@ import {
   createRunConfig,
   getFallbackContractId,
   getFallbackCyberwareId,
+  getCampaignLoadInfo,
+  getLockedContracts,
+  getLockedCyberware,
+  getUnlockedContracts,
+  getUnlockedCyberware,
   isContractUnlocked,
   isCyberwareUnlocked,
   loadCampaignState,
@@ -51,6 +56,7 @@ const autostartMode = launchParams.get('autostart') === '1' || showcaseMode;
 const legacySkipBriefing = launchParams.get('skipBriefing') === '1';
 const hotDropMode = launchParams.get('hotDrop') === '1';
 const requestedContractId = launchParams.get('contract');
+const resetProgressRequested = launchParams.get('resetProgress') === '1';
 
 const getReviewSeedContractId = (): ContractId => {
   if (showcaseMode || reviewSlice === 'authored') {
@@ -70,9 +76,14 @@ const getReviewSeedContractId = (): ContractId => {
 
 const reviewSeedContractId = getReviewSeedContractId();
 
-if (launchParams.get('resetProgress') === '1') {
+if (resetProgressRequested) {
   resetCampaignState();
 }
+
+document.documentElement.style.setProperty(
+  "--nd-shell-bg",
+  `url("${new URL("assets/img/shell-bg.jpg", document.baseURI).href}")`,
+);
 
 app.innerHTML = `
   <div class="shell">
@@ -92,6 +103,16 @@ app.innerHTML = `
               <span id="briefingZoneTag">Vanta Stack // Relay Yard</span>
               <span id="briefingUnlockTag">Open contract</span>
             </div>
+            <section class="capture-docket" aria-label="Hero capture targets">
+              <div class="capture-docket__header">
+                <div>
+                  <span class="eyebrow">Hero capture docket</span>
+                  <strong>Stage the review route on purpose</strong>
+                </div>
+                <p id="captureDocketLead">Three target frames keep the featured route looking curated instead of lucky.</p>
+              </div>
+              <div class="capture-docket__grid" id="captureDocket"></div>
+            </section>
           </section>
 
           <div class="briefing-stack">
@@ -137,6 +158,33 @@ app.innerHTML = `
               <h2>Campaign state</h2>
               <div class="campaign-grid" id="campaignSnapshot"></div>
               <div class="faction-ledger" id="factionLedger"></div>
+            </section>
+
+            <section class="briefing-card briefing-card--playtest">
+              <div class="eyebrow">Outsider pass</div>
+              <h2>Playtest script</h2>
+              <div class="playtest-grid">
+                <div class="playtest-row">
+                  <span>Route mode</span>
+                  <strong id="playtestModeValue">Live profile // open contract</strong>
+                  <p id="playtestModeDetail">Use the shell, not tribal memory: pick one contract, read the objective stack, and only then enter the district.</p>
+                </div>
+                <div class="playtest-row">
+                  <span>First minute</span>
+                  <strong id="playtestEntryValue">Walk, aim, dash, then trigger pressure on purpose</strong>
+                  <p id="playtestEntryDetail">Start in Recon, check the lane geometry, then use Activate Sweep when you want live combat instead of guessing where the fight starts.</p>
+                </div>
+                <div class="playtest-row">
+                  <span>Pressure check</span>
+                  <strong id="playtestPressureValue">Name the first unfair spike fast</strong>
+                  <p id="playtestPressureDetail">Once Sweep starts, watch for the first moment the route feels unreadable. If you cannot explain the spike, the pass is not ready to call clean.</p>
+                </div>
+                <div class="playtest-row">
+                  <span>After a wipe</span>
+                  <strong id="playtestRecoveryValue">Read the debrief before you retry</strong>
+                  <p id="playtestRecoveryDetail">Failures still keep salvage and a named next move. Use Run Another Contract or R after checking what carried forward.</p>
+                </div>
+              </div>
             </section>
 
             <section class="briefing-card">
@@ -209,6 +257,12 @@ app.innerHTML = `
           </div>
         </section>
 
+        <section class="capture-directive" aria-live="polite">
+          <div class="eyebrow" id="captureDirectiveLabel">Capture target</div>
+          <strong id="captureDirectiveValue">Shell promise frame</strong>
+          <p id="captureDirectiveDetail">Lead with a clean shell read before the district fills the frame.</p>
+        </section>
+
         <div id="game-root" class="game-root" tabindex="0"></div>
 
         <section class="mission-summary" id="missionSummary" aria-hidden="true" hidden>
@@ -227,6 +281,28 @@ app.innerHTML = `
             <div class="summary-line"><span>Faction shift</span><strong id="summaryFactionValue">No change</strong></div>
             <div class="summary-line"><span>Elite</span><strong id="summaryEliteValue">No elite attached</strong></div>
             <div class="summary-line"><span>Unlocks</span><strong id="summaryUnlocksValue">No new unlocks</strong></div>
+          </div>
+          <div class="summary-outlook">
+            <div class="summary-callout">
+              <span>Carry forward</span>
+              <strong id="summaryCarryValue">No rewards logged</strong>
+              <p id="summaryCarryDetail">Finish a contract to lock rewards and campaign state into the profile.</p>
+            </div>
+            <div class="summary-callout">
+              <span>Losses and tradeoffs</span>
+              <strong id="summaryLossValue">No losses logged</strong>
+              <p id="summaryLossDetail">Successes keep the route moving; failures should still leave a readable recovery path.</p>
+            </div>
+            <div class="summary-callout">
+              <span>District reaction</span>
+              <strong id="summaryPressureValue">No pressure change</strong>
+              <p id="summaryPressureDetail">Faction trust and hostile heat will update here after a resolved run.</p>
+            </div>
+            <div class="summary-callout">
+              <span>Best next move</span>
+              <strong id="summaryNextMoveValue">Pick the next ladder target</strong>
+              <p id="summaryNextMoveDetail">The shell will point at the strongest contract, armory, or cyberware follow-up after each run.</p>
+            </div>
           </div>
           <div class="summary-actions">
             <button class="control-button" id="summaryReplayButton" type="button">Run Another Contract</button>
@@ -289,13 +365,15 @@ app.innerHTML = `
             <div class="stat"><span>Hostiles</span><strong id="enemyCountValue">0</strong></div>
           </div>
           <div class="controls-card">
-            <div class="eyebrow">Quick tips</div>
+            <div class="eyebrow">First minute</div>
             <ul>
               <li><strong>Move:</strong> WASD</li>
               <li><strong>Aim + fire:</strong> mouse</li>
               <li><strong>Dash:</strong> Shift or Space</li>
               <li><strong>Swap weapon:</strong> Q / E</li>
+              <li><strong>Start clean:</strong> walk the lane in Recon, then trigger Sweep when you are ready</li>
               <li><strong>Retry:</strong> R or Reset Contract</li>
+              <li><strong>After a wipe:</strong> read the debrief for carry-forward and next move before re-entering</li>
             </ul>
           </div>
         </section>
@@ -393,6 +471,7 @@ const createReviewCampaignState = (): CampaignState => ({
   runs: 4,
   victories: 2,
   highestScore: 18420,
+  lastSavedAt: null,
   completedContracts: ['morrow-relay', 'blackout-spine'],
   ownedWeaponUpgrades: ['rail-capacitor'],
   selectedContractId: reviewSeedContractId,
@@ -415,6 +494,22 @@ type PhaserWindow = Window & {
   Phaser?: typeof Phaser;
 };
 
+type ProgressionTarget = {
+  kind: 'contract' | 'cyberware' | 'armory';
+  id: string | null;
+  title: string;
+  state: string;
+  detail: string;
+  action: string;
+  ready: boolean;
+  completed: boolean;
+};
+
+type RunSummaryCallout = {
+  value: string;
+  detail: string;
+};
+
 const PHASER_RUNTIME_URL = `${import.meta.env.BASE_URL}vendor/phaser.min.js`;
 
 let runtime: NeonDistrictRuntime | null = null;
@@ -422,6 +517,14 @@ let runtimeLoadPromise: Promise<RuntimeBootstrap> | null = null;
 let phaserRuntimePromise: Promise<void> | null = null;
 let audioDirector: NeonDistrictAudioDirector | null = null;
 let campaign = reviewMode ? createReviewCampaignState() : loadCampaignState();
+let campaignLoadInfo = reviewMode
+  ? {
+      source: 'fresh' as const,
+      detail: 'Review seed active. This shell does not write into the live profile.',
+      recovered: false,
+      lastSavedAt: null,
+    }
+  : getCampaignLoadInfo();
 let selectedContractId: ContractId = campaign.selectedContractId;
 let selectedCyberwareId: CyberwareId = campaign.selectedCyberwareId;
 let selectedWeapon: WeaponType = campaign.selectedWeapon;
@@ -434,7 +537,8 @@ let latestSnapshot: HudSnapshot | null = null;
 
 const persistCampaignState = () => {
   if (!reviewMode) {
-    saveCampaignState(campaign);
+    campaign = saveCampaignState(campaign);
+    campaignLoadInfo = getCampaignLoadInfo();
   }
 };
 
@@ -446,6 +550,31 @@ const formatTime = (timeSeconds: number) => {
 };
 
 const formatCredits = (credits: number) => `${credits.toLocaleString()}c`;
+
+const formatTimestamp = (value: string | null) => {
+  if (!value) return 'No save yet';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Time unreadable';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
+
+const buildCanonicalShellUrl = (mode: 'live' | 'reset' | 'review') => {
+  const url = new URL(window.location.href);
+  url.search = '';
+
+  if (mode === 'reset') {
+    url.searchParams.set('resetProgress', '1');
+  } else if (mode === 'review') {
+    url.searchParams.set('review', '1');
+  }
+
+  return `${url.pathname}${url.search}`;
+};
 
 const signedValue = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 
@@ -499,6 +628,245 @@ const describeUnlockState = (contract: ContractDefinition) => {
   return `Unlocks after ${contract.unlockVictories} extraction${contract.unlockVictories === 1 ? '' : 's'}`;
 };
 
+const formatVictoryGap = (requiredVictories: number) => {
+  const remaining = Math.max(0, requiredVictories - campaign.victories);
+  return remaining === 1 ? '1 more live extraction' : `${remaining} more live extractions`;
+};
+
+const getContractProgressionTarget = (): ProgressionTarget => {
+  const unlockedContracts = getUnlockedContracts(campaign)
+    .filter((contract) => !campaign.completedContracts.includes(contract.id))
+    .sort((a, b) => b.unlockVictories - a.unlockVictories || b.basePayout - a.basePayout);
+  const readyContract = unlockedContracts.find((contract) => contract.id !== selectedContractId) ?? unlockedContracts[0];
+
+  if (readyContract) {
+    return {
+      kind: 'contract',
+      id: readyContract.id,
+      title: readyContract.title,
+      state: 'Ready now',
+      detail: `${readyContract.missionType}. ${formatCredits(readyContract.basePayout)} base payout and ${FACTION_DETAILS[readyContract.hostileFaction].shortName} pressure on the route.`,
+      action: `Deploy this route next to widen the contract ladder without another unlock grind.`,
+      ready: true,
+      completed: false,
+    };
+  }
+
+  const nextLockedContract = getLockedContracts(campaign)
+    .sort((a, b) => a.unlockVictories - b.unlockVictories || b.basePayout - a.basePayout)[0];
+
+  if (nextLockedContract) {
+    return {
+      kind: 'contract',
+      id: nextLockedContract.id,
+      title: nextLockedContract.title,
+      state: `Locked // ${formatVictoryGap(nextLockedContract.unlockVictories)}`,
+      detail: `${nextLockedContract.missionType}. Opens at ${nextLockedContract.unlockVictories} victories and pays ${formatCredits(nextLockedContract.basePayout)} before bonuses.`,
+      action: `Clear ${formatVictoryGap(nextLockedContract.unlockVictories)} to unlock this route.`,
+      ready: false,
+      completed: false,
+    };
+  }
+
+  return {
+    kind: 'contract',
+    id: null,
+    title: 'Contract ladder cleared',
+    state: 'All routes open',
+    detail: 'Every contract is already unlocked. Use the highest-pressure route as the next run target instead of grinding for access.',
+    action: 'Push the best open route and use armory or cyberware choices to shape the next attempt.',
+    ready: true,
+    completed: true,
+  };
+};
+
+const getPreferredUnlockedCyberware = () => {
+  const unlockedAlternatives = getUnlockedCyberware(campaign)
+    .filter((option) => option.id !== selectedCyberwareId);
+  if (unlockedAlternatives.length === 0) return null;
+
+  const contract = getSelectedContract();
+  const priority: CyberwareId[] = [];
+  if ((contract.hazards?.length ?? 0) > 0 || campaign.factions[contract.hostileFaction].heat >= 15 || campaign.lastResult?.victory === false) {
+    priority.push('blink-weave');
+  }
+  if (selectedWeapon === 'rail' || selectedWeapon === 'scatter') {
+    priority.push('heat-sink');
+  }
+  if (campaign.bankCredits < 900) {
+    priority.push('scrapper-daemon');
+  }
+  priority.push('mesh', 'heat-sink', 'blink-weave', 'scrapper-daemon');
+
+  return unlockedAlternatives.sort((a, b) => {
+    const aRank = priority.indexOf(a.id);
+    const bRank = priority.indexOf(b.id);
+    const safeARank = aRank === -1 ? Number.MAX_SAFE_INTEGER : aRank;
+    const safeBRank = bRank === -1 ? Number.MAX_SAFE_INTEGER : bRank;
+    return safeARank - safeBRank || b.unlockVictories - a.unlockVictories;
+  })[0];
+};
+
+const getCyberwareProgressionTarget = (): ProgressionTarget => {
+  const readyCyberware = getPreferredUnlockedCyberware();
+  if (readyCyberware) {
+    return {
+      kind: 'cyberware',
+      id: readyCyberware.id,
+      title: readyCyberware.title,
+      state: 'Ready now',
+      detail: readyCyberware.summary,
+      action: `Swap this in before the next run to change how the route plays instead of only banking credits.`,
+      ready: true,
+      completed: false,
+    };
+  }
+
+  const nextLockedCyberware = getLockedCyberware(campaign)
+    .sort((a, b) => a.unlockVictories - b.unlockVictories)[0];
+  if (nextLockedCyberware) {
+    return {
+      kind: 'cyberware',
+      id: nextLockedCyberware.id,
+      title: nextLockedCyberware.title,
+      state: `Locked // ${formatVictoryGap(nextLockedCyberware.unlockVictories)}`,
+      detail: nextLockedCyberware.summary,
+      action: `Bank another win and this implant opens at ${nextLockedCyberware.unlockVictories} victories.`,
+      ready: false,
+      completed: false,
+    };
+  }
+
+  return {
+    kind: 'cyberware',
+    id: null,
+    title: 'Cyberware ladder cleared',
+    state: 'All implants open',
+    detail: 'Every cyberware option is unlocked. The next useful change is swapping implants to fit the route, not chasing a new gate.',
+    action: 'Use the current contract and heat profile to decide which unlocked implant should shape the next attempt.',
+    ready: true,
+    completed: true,
+  };
+};
+
+const getArmoryProgressionTarget = (): ProgressionTarget => {
+  const unownedUpgrades = WEAPON_UPGRADES
+    .filter((upgrade) => !campaign.ownedWeaponUpgrades.includes(upgrade.id));
+  const preferredUpgrade = unownedUpgrades.find((upgrade) => upgrade.weapon === selectedWeapon)
+    ?? [...unownedUpgrades].sort((a, b) => a.cost - b.cost)[0];
+
+  if (preferredUpgrade) {
+    const missingCredits = Math.max(0, preferredUpgrade.cost - campaign.bankCredits);
+    return {
+      kind: 'armory',
+      id: preferredUpgrade.id,
+      title: preferredUpgrade.title,
+      state: missingCredits === 0 ? 'Ready to buy' : `Need ${formatCredits(missingCredits)}`,
+      detail: preferredUpgrade.summary,
+      action: missingCredits === 0
+        ? `Buy this before the next drop so the selected ${describeWeaponShort(selectedWeapon)} loadout changes materially.`
+        : `Bank ${formatCredits(missingCredits)} more to turn the next run into a real weapon upgrade instead of another stock pass.`,
+      ready: missingCredits === 0,
+      completed: false,
+    };
+  }
+
+  return {
+    kind: 'armory',
+    id: null,
+    title: 'Armory ladder cleared',
+    state: 'All weapon fits owned',
+    detail: 'Every permanent weapon tune is already bought. The next between-run decisions should come from contracts and cyberware swaps.',
+    action: 'Use route choice and implant swaps to drive the next run.',
+    ready: true,
+    completed: true,
+  };
+};
+
+const getPrimaryProgressionTarget = () => {
+  const targets = [
+    getContractProgressionTarget(),
+    getArmoryProgressionTarget(),
+    getCyberwareProgressionTarget(),
+  ];
+  return targets.find((target) => target.ready && !target.completed)
+    ?? targets.find((target) => !target.completed)
+    ?? targets[0];
+};
+
+const getRunCarryforwardSummary = (contract: ContractDefinition, summaryResult: CampaignRunResult): RunSummaryCallout => {
+  if (summaryResult.victory) {
+    const rewardParts = [
+      `${formatCredits(summaryResult.scavengedCredits)} recovered in the lane`,
+      `${formatCredits(summaryResult.payoutCredits)} contract payout cleared`,
+    ];
+    if (summaryResult.optionalObjectiveCompleted && summaryResult.optionalObjectiveRewardCredits > 0) {
+      rewardParts.push(`${formatCredits(summaryResult.optionalObjectiveRewardCredits)} came from the optional objective`);
+    }
+
+    return {
+      value: `${formatCredits(summaryResult.totalCreditsAwarded)} banked`,
+      detail: `${rewardParts.join(', ')}. The run closed ${contract.title} with a live campaign gain, not just scoreboard noise.`,
+    };
+  }
+
+  return {
+    value: `${formatCredits(summaryResult.scavengedCredits)} salvaged`,
+    detail: `${contract.title} failed, but the profile still kept field salvage instead of wiping the night clean. That preserved bank is the recovery fuel for the next attempt.`,
+  };
+};
+
+const getRunLossSummary = (contract: ContractDefinition, summaryResult: CampaignRunResult): RunSummaryCallout => {
+  if (summaryResult.victory) {
+    const missedBonus = summaryResult.optionalObjectiveLabel && !summaryResult.optionalObjectiveCompleted
+      ? `You left ${summaryResult.optionalObjectiveLabel} dark, so the cleanest witness or bonus route is still on the table next time.`
+      : 'The clean extract avoided a profile setback, so the only remaining tradeoffs are route choice and what to chase next.';
+    return {
+      value: 'No payout loss',
+      detail: missedBonus,
+    };
+  }
+
+  const missedElite = contract.elite && !summaryResult.eliteDefeated
+    ? ` ${contract.elite.callsign} stayed on the board, which also left the elite bonus unclaimed.`
+    : '';
+  const missedOptional = summaryResult.optionalObjectiveLabel && !summaryResult.optionalObjectiveCompleted
+    ? ` ${summaryResult.optionalObjectiveLabel} also stayed unresolved, so its bonus did not land.`
+    : '';
+  return {
+    value: `${formatCredits(contract.basePayout)} payout lost`,
+    detail: `The contract payout did not clear because the route collapsed before extraction.${missedElite}${missedOptional} The next run still matters because the banked salvage and current unlock state survived the miss.`,
+  };
+};
+
+const getRunPressureSummary = (summaryResult: CampaignRunResult): RunSummaryCallout => {
+  const clientName = FACTION_DETAILS[summaryResult.clientFaction].shortName;
+  const hostileName = FACTION_DETAILS[summaryResult.hostileFaction].shortName;
+  const hostileHeat = campaign.factions[summaryResult.hostileFaction].heat;
+  const clientRep = campaign.factions[summaryResult.clientFaction].reputation;
+  const nextPressure = hostileHeat >= 20
+    ? 'Expect the next drop to open hotter and stay meaner for longer.'
+    : 'The lane is still controllable, but hostile pressure is clearly climbing.';
+
+  return {
+    value: `${signedValue(summaryResult.reputationDelta)} ${clientName} rep // +${summaryResult.hostileHeatDelta} ${hostileName} heat`,
+    detail: `${clientName} now sits at ${signedValue(clientRep)} trust, while ${hostileName} heat is ${hostileHeat}. ${nextPressure}`,
+  };
+};
+
+const getRunNextMoveSummary = (summaryResult: CampaignRunResult): RunSummaryCallout => {
+  const primaryTarget = getPrimaryProgressionTarget();
+  const unlockCount = summaryResult.unlocks.length + summaryResult.contractUnlocks.length;
+  const unlockLead = unlockCount > 0
+    ? `The district opened ${unlockCount} new ladder event${unlockCount === 1 ? '' : 's'}, so the shell can point at a stronger follow-up immediately.`
+    : 'No new unlock fired on this run, so the best next move comes from the current contract, armory, and cyberware ladder.';
+
+  return {
+    value: primaryTarget.title,
+    detail: `${primaryTarget.state}. ${primaryTarget.action} ${unlockLead}`,
+  };
+};
+
 const describeContractDebrief = (contract: ContractDefinition, summaryResult: CampaignRunResult) => {
   if (contract.id === 'choir-heist') {
     if (summaryResult.victory) {
@@ -513,8 +881,8 @@ const describeContractDebrief = (contract: ContractDefinition, summaryResult: Ca
   }
 
   return summaryResult.victory
-    ? 'The route held and the payout pushed your campaign forward.'
-    : 'You kept what scrap you could, but the client will remember the miss and the hostile lane still got hotter.';
+    ? contract.victorySummary ?? 'The route held and the payout pushed your campaign forward.'
+    : contract.failureSummary ?? 'You kept what scrap you could, but the client will remember the miss and the hostile lane still got hotter.';
 };
 
 const setText = (selector: string, value: string) => {
@@ -535,11 +903,257 @@ const setWidth = (selector: string, value: number, max: number) => {
   }
 };
 
+const setHtml = (selector: string, value: string) => {
+  const element = queryCachedElement(selector);
+  if (element && element.innerHTML !== value) {
+    element.innerHTML = value;
+  }
+};
+
 const getSelectedContract = () => CONTRACTS_BY_ID[selectedContractId];
 const getSelectedCyberware = () => CYBERWARE_BY_ID[selectedCyberwareId];
 const getOwnedUpgradeForWeapon = (weapon: WeaponType) => WEAPON_UPGRADES.find(
   (upgrade) => upgrade.weapon === weapon && campaign.ownedWeaponUpgrades.includes(upgrade.id),
 ) ?? null;
+
+const getProfileModeLabel = () => {
+  if (showcaseMode) return 'Showcase review seed';
+  if (hazardReviewMode) return 'Hazard review seed';
+  if (bossReviewMode) return 'Boss review seed';
+  if (showcaseReviewMode) return 'Authored review seed';
+  if (reviewMode) return 'Review seed';
+  if (resetProgressRequested) return 'Live profile reset';
+  return 'Live profile';
+};
+
+const getProfileHealthLabel = () => {
+  if (reviewMode) return 'Non-persistent';
+  if (campaignLoadInfo.recovered) return 'Recovered safely';
+  if (campaign.lastSavedAt) return 'Save active';
+  return 'Clean baseline';
+};
+
+const getProfileHealthDetail = () => {
+  if (reviewMode) {
+    return 'This route is isolated from browser saves and will not change the live campaign.';
+  }
+
+  if (resetProgressRequested) {
+    return 'A reset was requested on this launch, so the live campaign restarted from a clean baseline before the shell loaded.';
+  }
+
+  return campaignLoadInfo.detail;
+};
+
+const getProfileRoutingDetail = () => reviewMode
+  ? 'Seeded review runs in a separate non-persistent lane. Jump back to the live profile whenever you want to validate real progression.'
+  : 'Live progression writes to the browser profile only. Use review mode for clean capture passes, or reset the live profile from the shell before a fresh proof run.';
+
+const getResetExpectationDetail = () => reviewMode
+  ? 'Review seed ignores live save writes. Returning to the live route restores the existing browser profile exactly as it was left.'
+  : 'Reset clears the live bank, victories, unlocks, loadout picks, and last-run summary from local browser storage before the shell reloads.';
+
+const renderPlaytestScript = () => {
+  if (reviewMode) {
+    setText('#playtestModeValue', showcaseMode
+      ? 'Showcase seed // featured route'
+      : showcaseReviewMode
+        ? 'Authored review seed // featured contract'
+        : bossReviewMode
+          ? 'Boss review seed // escalation slice'
+          : hazardReviewMode
+            ? 'Hazard review seed // blackout survival'
+            : 'Review seed // deterministic briefing pass');
+    setText('#playtestModeDetail', showcaseMode
+      ? 'Use this when you want the cleanest featured-route read. It stays non-persistent and drops straight into the flagship lane.'
+      : 'Use the seeded shell to judge onboarding copy, route clarity, and recovery messaging without live-save noise.');
+    setText('#playtestEntryValue', autostartMode
+      ? 'Fast-entry route active'
+      : 'Read the shell, then enter on purpose');
+    setText('#playtestEntryDetail', autostartMode
+      ? 'Autostart skips the shell and lands in Recon so reviewers can move, aim, dash, and choose when to trigger pressure.'
+      : 'Stay on the shell long enough to read contract goal, controls, and the current best-next-move before the first fight.');
+    setText('#playtestPressureValue', 'Call out the first readability spike');
+    setText('#playtestPressureDetail', 'Use the seeded route to decide whether the first pressure jump feels earned, readable, and survivable without a manager explaining the lane.');
+    setText('#playtestRecoveryValue', 'Check the debrief, then replay the same route');
+    setText('#playtestRecoveryDetail', 'A failed review run should still tell you what carried forward, what hurt, and whether the next attempt feels worth taking.');
+    return;
+  }
+
+  const primaryTarget = getPrimaryProgressionTarget();
+  setText('#playtestModeValue', `${getProfileModeLabel()} // ${primaryTarget.title}`);
+  setText('#playtestModeDetail', `Use the current shell to pick the next ladder target instead of relying on memory. Current route: ${primaryTarget.action}`);
+  setText('#playtestEntryValue', 'Walk the lane before you wake it up');
+  setText('#playtestEntryDetail', 'Every live contract opens in Recon. Move first, aim once, test dash spacing, then hit Activate Sweep when you are ready for pressure.');
+  setText('#playtestPressureValue', 'Spot the first unfair spike quickly');
+  setText('#playtestPressureDetail', 'The first wave should be readable enough that you can name what went wrong if it breaks down: angle pressure, shield stack, elite timing, or route clutter.');
+  setText('#playtestRecoveryValue', 'Debrief first, retry second');
+  setText('#playtestRecoveryDetail', 'Wipes preserve banked salvage, owned unlocks, and a named next move. Read the summary, then use Run Another Contract or R for the follow-up attempt.');
+};
+
+const getCaptureDocketEntries = (contract: ContractDefinition) => {
+  const combatTitle = contract.elite?.callsign
+    ? `${contract.elite.callsign} pressure frame`
+    : `${contract.missionType} combat frame`;
+  const combatDetail = contract.elite?.callsign
+    ? `Hold one readable beat where ${contract.elite.callsign} owns the threat lane but the player silhouette and escape line still read cleanly.`
+    : `Lock a mid-fight still where weapon identity, enemy spacing, and the route line remain legible in one glance.`;
+  const extractionTitle = contract.optionalObjective
+    ? `${contract.optionalObjective.shortLabel} aftermath`
+    : 'Extraction countdown frame';
+  const extractionDetail = contract.optionalObjective
+    ? `Capture the route right after ${contract.optionalObjective.shortLabel} resolves so the district looks costly, unstable, and worth a promo still.`
+    : 'Frame the route under timer pressure so the countdown feels procedural and narrowing instead of arcade-cleanup.';
+
+  return [
+    {
+      label: 'Shell promise',
+      title: `${contract.title} briefing frame`,
+      detail: `Keep the active contract card, next action, and ${contract.zone} tags in one composed shell shot.`,
+    },
+    {
+      label: contract.elite ? 'Pressure spike' : 'Combat read',
+      title: combatTitle,
+      detail: combatDetail,
+    },
+    {
+      label: 'Aftermath',
+      title: extractionTitle,
+      detail: extractionDetail,
+    },
+  ];
+};
+
+const renderCaptureDocket = () => {
+  const contract = getSelectedContract();
+  const entries = getCaptureDocketEntries(contract);
+  setText(
+    '#captureDocketLead',
+    reviewMode
+      ? `Use the ${contract.title} review lane to collect one shell, one pressure, and one ending frame without relying on luck.`
+      : `Use the live shell to set up one shell, one pressure, and one ending frame before the route state drifts.`,
+  );
+  setHtml(
+    '#captureDocket',
+    entries.map((entry) => `
+      <article class="capture-mark">
+        <span>${entry.label}</span>
+        <strong>${entry.title}</strong>
+        <p>${entry.detail}</p>
+      </article>
+    `).join(''),
+  );
+};
+
+const getCaptureDirective = (snapshot: HudSnapshot | null, contract: ContractDefinition) => {
+  if (!snapshot) {
+    return {
+      label: 'Capture target',
+      title: `${contract.title} shell promise`,
+      detail: `Open with the shell read: contract title, route stakes, and ${contract.zone} lighting in one clean frame.`,
+      state: 'shell',
+    };
+  }
+
+  if (snapshot.victory) {
+    return {
+      label: 'Aftermath frame',
+      title: `${contract.title} secured`,
+      detail: 'Hold the calmer aftermath beat long enough to catch smoke, debris, and a readable route resolution without reopening chaos.',
+      state: 'aftermath',
+    };
+  }
+
+  if (snapshot.gameOver) {
+    return {
+      label: 'Failure read',
+      title: 'Collapsed route debrief',
+      detail: 'Keep the failure state readable enough that an outside reviewer can understand the loss and the next move in one still.',
+      state: 'failure',
+    };
+  }
+
+  if (!snapshot.combatActive) {
+    return {
+      label: 'Entry frame',
+      title: `${contract.zone} approach line`,
+      detail: 'Take the first district step with one strong route line, one signage anchor, and enough negative space around the player silhouette.',
+      state: 'entry',
+    };
+  }
+
+  if (snapshot.objectivePhase === 'extract') {
+    return {
+      label: 'Countdown frame',
+      title: 'Extraction pressure',
+      detail: 'Catch the route while the extraction clock is narrowing so urgency reads before clutter does.',
+      state: 'extract',
+    };
+  }
+
+  if (snapshot.eliteActive && snapshot.eliteCallsign) {
+    return {
+      label: 'Pressure spike',
+      title: `${snapshot.eliteCallsign} owns the lane`,
+      detail: 'Favour the frame where the elite threat, escape path, and player counter-angle remain visible at the same time.',
+      state: 'elite',
+    };
+  }
+
+  if (snapshot.objectivePhase === 'hold-upload') {
+    return {
+      label: 'Combat frame',
+      title: 'Shield-break hold line',
+      detail: 'Look for the upload hold beat where weapon read, shield pressure, and route geometry stay decipherable in one glance.',
+      state: 'hold',
+    };
+  }
+
+  return {
+    label: 'Combat read',
+    title: `${contract.missionType} route pressure`,
+    detail: 'Hold a mid-route frame where the player path, incoming angle, and the next objective all read without narration.',
+    state: 'combat',
+  };
+};
+
+const renderCaptureDirective = (snapshot: HudSnapshot | null = latestSnapshot) => {
+  const directive = getCaptureDirective(snapshot, getSelectedContract());
+  setText('#captureDirectiveLabel', directive.label);
+  setText('#captureDirectiveValue', directive.title);
+  setText('#captureDirectiveDetail', directive.detail);
+  gameFrame.dataset.captureState = directive.state;
+};
+
+const confirmAndNavigateToReset = () => {
+  const confirmed = window.confirm(
+    'Reset the live Neon District profile? This clears local progression, banked credits, unlocks, and the saved last-run summary before reloading the shell.',
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  window.location.href = buildCanonicalShellUrl('reset');
+};
+
+const getLastRunLabel = () => {
+  if (!campaign.lastResult) return 'No run logged yet';
+  return `${campaign.lastResult.victory ? 'Success' : 'Failure'} // ${campaign.lastResult.contractTitle}`;
+};
+
+const getLastRunDetail = () => {
+  if (!campaign.lastResult) {
+    return reviewMode
+      ? 'Review seed uses a fixed campaign snapshot and does not carry fresh run results between sessions.'
+      : 'Complete one contract to lock a dated result, reward summary, and next-run context into the profile.';
+  }
+
+  const result = campaign.lastResult;
+  const carry = getRunCarryforwardSummary(CONTRACTS_BY_ID[result.contractId], result);
+  const nextMove = getRunNextMoveSummary(result);
+  return `${carry.value}. ${nextMove.value}.`;
+};
 
 const persistSelections = () => {
   campaign = {
@@ -559,19 +1173,23 @@ const getPreviewCampaignState = (): CampaignState => ({
 });
 
 const renderContractBoard = () => {
+  const contractTarget = getContractProgressionTarget();
   contractBoard.innerHTML = CONTRACTS.map((contract) => {
     const unlocked = isContractUnlocked(campaign, contract.id);
     const active = contract.id === selectedContractId;
+    const completed = campaign.completedContracts.includes(contract.id);
     const client = FACTION_DETAILS[contract.clientFaction];
-    const featuredLabel = contract.featuredLabel
+    const victoryGap = unlocked ? '' : formatVictoryGap(contract.unlockVictories);
+  const featuredLabel = contract.featuredLabel
       ? `<span class="contract-option__badge">${contract.featuredLabel}</span>`
       : '';
     return `
-      <button class="contract-option${active ? ' is-active' : ''}${unlocked ? '' : ' is-locked'}" data-contract="${contract.id}" type="button" ${unlocked ? '' : 'disabled'}>
+      <button class="contract-option${active ? ' is-active' : ''}${unlocked ? '' : ' is-locked'}${contractTarget.id === contract.id ? ' is-target' : ''}${contract.featuredLabel ? ' is-featured' : ''}" data-contract="${contract.id}" type="button" ${unlocked ? '' : 'disabled'}>
         <div class="contract-option__header">
           <div class="contract-option__title-row">
             <strong>${contract.title}</strong>
             ${featuredLabel}
+            ${contractTarget.id === contract.id ? '<span class="contract-option__badge contract-option__badge--target">Next target</span>' : ''}
           </div>
           <span>${contract.missionType}</span>
         </div>
@@ -582,25 +1200,31 @@ const renderContractBoard = () => {
           <span style="color:${client.accent}">${client.shortName}</span>
           <span>${contract.elite?.callsign ?? 'No elite'}</span>
         </div>
+        <div class="contract-option__footer">
+          <span>${unlocked ? (completed ? 'Route cleared' : 'Ready to deploy') : `Locked // ${victoryGap}`}</span>
+          <span>${unlocked ? 'Select this route to move the contract ladder forward.' : `Win ${victoryGap} to open this contract.`}</span>
+        </div>
       </button>
     `;
   }).join('');
 };
 
 const renderCyberwareBoard = () => {
+  const cyberwareTarget = getCyberwareProgressionTarget();
   cyberwareGrid.innerHTML = CYBERWARE_OPTIONS.map((option) => {
     const unlocked = isCyberwareUnlocked(campaign, option.id);
     const active = option.id === selectedCyberwareId;
+    const victoryGap = unlocked ? '' : formatVictoryGap(option.unlockVictories);
     return `
-      <button class="cyberware-option${active ? ' is-active' : ''}${unlocked ? '' : ' is-locked'}" data-cyberware="${option.id}" type="button" ${unlocked ? '' : 'disabled'}>
+      <button class="cyberware-option${active ? ' is-active' : ''}${unlocked ? '' : ' is-locked'}${cyberwareTarget.id === option.id ? ' is-target' : ''}" data-cyberware="${option.id}" type="button" ${unlocked ? '' : 'disabled'}>
         <div class="cyberware-option__header">
           <strong>${option.title}</strong>
-          <span>${option.slotLabel}</span>
+          <span>${cyberwareTarget.id === option.id ? 'Next target' : option.slotLabel}</span>
         </div>
         <p>${option.summary}</p>
         <div class="cyberware-option__footer">
           <span>${option.detail}</span>
-          <span>${unlocked ? 'Unlocked' : `Locked until ${option.unlockVictories} extraction${option.unlockVictories === 1 ? '' : 's'}`}</span>
+          <span>${unlocked ? 'Unlocked and ready to slot' : `Win ${victoryGap} to unlock`}</span>
         </div>
       </button>
     `;
@@ -608,24 +1232,26 @@ const renderCyberwareBoard = () => {
 };
 
 const renderArmoryBoard = () => {
+  const armoryTarget = getArmoryProgressionTarget();
   armoryGrid.innerHTML = WEAPON_UPGRADES.map((upgrade) => {
     const owned = campaign.ownedWeaponUpgrades.includes(upgrade.id);
     const active = owned && upgrade.weapon === selectedWeapon;
     const affordable = campaign.bankCredits >= upgrade.cost;
+    const missingCredits = Math.max(0, upgrade.cost - campaign.bankCredits);
     const actionLabel = owned
       ? active ? 'Installed on current loadout' : 'Owned'
-      : affordable ? `Buy ${formatCredits(upgrade.cost)}` : `Need ${formatCredits(upgrade.cost)}`;
+      : affordable ? `Buy ${formatCredits(upgrade.cost)}` : `Need ${formatCredits(missingCredits)}`;
 
     return `
-      <button class="armory-option${active ? ' is-active' : ''}${owned ? ' is-owned' : ''}${!owned && !affordable ? ' is-locked' : ''}" data-armory="${upgrade.id}" type="button" ${owned || affordable ? '' : 'disabled'}>
+      <button class="armory-option${active ? ' is-active' : ''}${owned ? ' is-owned' : ''}${!owned && !affordable ? ' is-locked' : ''}${armoryTarget.id === upgrade.id ? ' is-target' : ''}" data-armory="${upgrade.id}" type="button" ${owned || affordable ? '' : 'disabled'}>
         <div class="armory-option__header">
           <strong>${upgrade.title}</strong>
-          <span>${upgrade.slotLabel}</span>
+          <span>${armoryTarget.id === upgrade.id ? 'Next target' : upgrade.slotLabel}</span>
         </div>
         <p>${upgrade.summary}</p>
         <div class="armory-option__footer">
           <span>${upgrade.detail}</span>
-          <span>${actionLabel}</span>
+          <span>${owned ? actionLabel : affordable ? `${actionLabel} before the next run` : `${actionLabel} from future contracts`}</span>
         </div>
       </button>
     `;
@@ -633,12 +1259,82 @@ const renderArmoryBoard = () => {
 };
 
 const renderCampaignSnapshot = () => {
+  const selectedContract = getSelectedContract();
+  const unlockedContracts = CONTRACTS.filter((contract) => isContractUnlocked(campaign, contract.id)).length;
+  const unlockedCyberware = CYBERWARE_OPTIONS.filter((option) => isCyberwareUnlocked(campaign, option.id)).length;
+  const contractTarget = getContractProgressionTarget();
+  const cyberwareTarget = getCyberwareProgressionTarget();
+  const armoryTarget = getArmoryProgressionTarget();
+  const primaryTarget = getPrimaryProgressionTarget();
+
   campaignSnapshot.innerHTML = `
+    <div class="campaign-stat campaign-stat--mode">
+      <span>Profile mode</span>
+      <strong>${getProfileModeLabel()}</strong>
+      <small>${getProfileHealthDetail()}</small>
+    </div>
+    <div class="campaign-stat campaign-stat--status">
+      <span>Save health</span>
+      <strong>${getProfileHealthLabel()}</strong>
+      <small>${reviewMode ? 'Seeded state only' : formatTimestamp(campaign.lastSavedAt)}</small>
+    </div>
     <div class="campaign-stat"><span>Bank</span><strong>${formatCredits(campaign.bankCredits)}</strong></div>
     <div class="campaign-stat"><span>Victories</span><strong>${campaign.victories}</strong></div>
     <div class="campaign-stat"><span>Closed contracts</span><strong>${campaign.completedContracts.length} / ${CONTRACTS.length}</strong></div>
+    <div class="campaign-stat"><span>Unlocked contracts</span><strong>${unlockedContracts} / ${CONTRACTS.length}</strong></div>
+    <div class="campaign-stat"><span>Unlocked cyberware</span><strong>${unlockedCyberware} / ${CYBERWARE_OPTIONS.length}</strong></div>
     <div class="campaign-stat"><span>Armory fits</span><strong>${campaign.ownedWeaponUpgrades.length} / ${WEAPON_UPGRADES.length}</strong></div>
     <div class="campaign-stat"><span>High score</span><strong>${campaign.highestScore.toLocaleString()}</strong></div>
+    <div class="campaign-stat">
+      <span>Selected route</span>
+      <strong>${selectedContract.title}</strong>
+      <small>${selectedContract.zone}</small>
+    </div>
+    <div class="campaign-stat campaign-stat--result">
+      <span>Last run</span>
+      <strong>${getLastRunLabel()}</strong>
+      <small>${getLastRunDetail()}</small>
+    </div>
+    <div class="campaign-stat campaign-stat--focus">
+      <span>Best next move</span>
+      <strong>${primaryTarget.title}</strong>
+      <small>${primaryTarget.state}. ${primaryTarget.action}</small>
+    </div>
+    <div class="campaign-stat campaign-stat--controls">
+      <span>Profile controls</span>
+      <strong>${reviewMode ? 'Switch routes safely' : 'Reset and review paths'}</strong>
+      <small>${getProfileRoutingDetail()}</small>
+      <div class="campaign-action-row">
+        <button class="control-button control-button--ghost" data-profile-action="live" type="button">Open live profile</button>
+        <button class="control-button control-button--ghost" data-profile-action="review" type="button">Open review seed</button>
+        <button class="control-button control-button--alt" data-profile-action="reset" type="button">Reset live profile</button>
+      </div>
+    </div>
+    <div class="campaign-stat campaign-stat--isolation">
+      <span>Isolation contract</span>
+      <strong>${reviewMode ? 'Review seed cannot touch the live save' : 'Live save stays separate from seeded review'}</strong>
+      <small>${getResetExpectationDetail()}</small>
+    </div>
+    <div class="campaign-ladder">
+      <div class="ladder-card${contractTarget.ready ? ' is-ready' : ''}">
+        <span>Next contract target</span>
+        <strong>${contractTarget.title}</strong>
+        <small>${contractTarget.state}</small>
+        <p>${contractTarget.detail}</p>
+      </div>
+      <div class="ladder-card${cyberwareTarget.ready ? ' is-ready' : ''}">
+        <span>Next cyberware target</span>
+        <strong>${cyberwareTarget.title}</strong>
+        <small>${cyberwareTarget.state}</small>
+        <p>${cyberwareTarget.detail}</p>
+      </div>
+      <div class="ladder-card${armoryTarget.ready ? ' is-ready' : ''}">
+        <span>Next armory target</span>
+        <strong>${armoryTarget.title}</strong>
+        <small>${armoryTarget.state}</small>
+        <p>${armoryTarget.detail}</p>
+      </div>
+    </div>
   `;
 };
 
@@ -701,6 +1397,8 @@ const renderContractCopy = () => {
   setText('#bankTicker', formatCredits(campaign.bankCredits));
   setText('#victoryTicker', `${campaign.victories}`);
   setText('#heatTicker', `${campaign.factions[contract.hostileFaction].heat}`);
+  renderCaptureDocket();
+  renderCaptureDirective();
 };
 
 const renderBriefingUi = () => {
@@ -745,6 +1443,7 @@ const focusVisibleChrome = () => {
 };
 
 const renderBriefingNote = () => {
+  const primaryTarget = getPrimaryProgressionTarget();
   briefingNote.innerHTML = reviewMode
     ? showcaseMode
       ? 'Showcase route active. <code>?showcase=1</code> jumps straight into the featured Dead Signal Choir Heist demo lane while keeping progress non-persistent.'
@@ -754,8 +1453,9 @@ const renderBriefingNote = () => {
         ? 'Boss review slice active. <code>?review=1&reviewSlice=boss</code> loads the Glassfall Nullbreaker Siege shell, and <code>?autostart=1&review=1&reviewSlice=boss</code> enters that slice immediately.'
       : showcaseReviewMode
         ? 'Authored review slice active. <code>?review=1&reviewSlice=authored</code> loads the featured Dead Signal Choir Heist shell, and <code>?autostart=1&review=1&reviewSlice=authored</code> enters that slice immediately.'
-      : 'Review seed active. <code>?review=1</code> opens a deterministic non-persistent campaign state, and <code>?autostart=1&review=1</code> enters the district immediately for manager review captures.'
-    : 'Phase Two progression saves locally in your browser. Add <code>?resetProgress=1</code> to the URL if you want a clean campaign review.';
+      : 'Review seed active. <code>?review=1</code> opens a deterministic non-persistent campaign state, and <code>?autostart=1&review=1</code> enters the district immediately for a no-save outsider pass.'
+    : `${getProfileHealthDetail()} Last save: <code>${formatTimestamp(campaign.lastSavedAt)}</code>. Best next move: <strong>${primaryTarget.title}</strong> // ${primaryTarget.action} If you want a clean outsider baseline first, add <code>?resetProgress=1</code> before review.`;
+  renderPlaytestScript();
 };
 
 const setEntryLoadingState = (loading: boolean) => {
@@ -773,7 +1473,7 @@ const setEntryLoadingState = (loading: boolean) => {
         ? 'Booting the boss review slice and district runtime...'
         : showcaseReviewMode
         ? 'Booting the featured authored review slice and district runtime...'
-        : 'Booting the deterministic review seed and district runtime...'
+        : 'Booting the deterministic review seed and district runtime for the outsider pass...'
       : 'Booting the district runtime and stitching the contract shell into the arena...';
   } else {
     renderBriefingNote();
@@ -843,6 +1543,10 @@ const handleHudUpdate = (snapshot: HudSnapshot) => {
       ? `${summaryResult.optionalObjectiveLabel} cleared for ${formatCredits(summaryResult.optionalObjectiveRewardCredits)} and ${signedValue(summaryResult.optionalObjectiveReputationBonus)} ${FACTION_DETAILS[summaryResult.clientFaction].shortName} rep.`
       : `${summaryResult.optionalObjectiveLabel} was left dark and the main route closed without the bonus shard.`
     : '';
+  const carrySummary = summaryResult ? getRunCarryforwardSummary(contract, summaryResult) : null;
+  const lossSummary = summaryResult ? getRunLossSummary(contract, summaryResult) : null;
+  const pressureSummary = summaryResult ? getRunPressureSummary(summaryResult) : null;
+  const nextMoveSummary = summaryResult ? getRunNextMoveSummary(summaryResult) : null;
 
   setText('#districtName', snapshot.districtName);
   setText('#districtStatus', snapshot.victory ? 'Contract complete' : snapshot.gameOver ? 'Run flatlined' : snapshot.districtStatus);
@@ -885,7 +1589,7 @@ const handleHudUpdate = (snapshot: HudSnapshot) => {
   setText('#summaryEyebrow', summaryResult?.victory ? 'Contract complete' : summaryResult ? 'Contract failed' : 'Contract outcome');
   setText('#summaryTitle', summaryResult?.victory ? `${summaryResult.contractTitle} closed` : summaryResult ? `${summaryResult.contractTitle} lost` : 'Contract live');
   setText('#summaryBody', summaryResult
-    ? `${describeContractDebrief(contract, summaryResult)} ${unlockLabels.length > 0 ? `New unlocks came online as the district reacted. ` : ''}${optionalOutcomeText}`.trim()
+    ? `${describeContractDebrief(contract, summaryResult)} ${unlockLabels.length > 0 ? `New unlocks came online as the district reacted. ` : ''}${optionalOutcomeText} ${nextMoveSummary?.detail ?? ''}`.trim()
     : snapshot.districtSummary);
   setText('#summaryOutcomeValue', summaryResult ? (summaryResult.victory ? 'Success' : 'Failure') : 'Live');
   setText('#summaryTimeValue', formatTime(summaryResult?.runtimeSeconds ?? snapshot.timeSeconds));
@@ -896,6 +1600,14 @@ const handleHudUpdate = (snapshot: HudSnapshot) => {
   setText('#summaryFactionValue', summaryResult ? `${signedValue(summaryResult.reputationDelta)} ${FACTION_DETAILS[summaryResult.clientFaction].shortName} rep // +${summaryResult.hostileHeatDelta} ${FACTION_DETAILS[summaryResult.hostileFaction].shortName} heat` : 'No faction shift yet');
   setText('#summaryEliteValue', summaryResult ? contract.elite ? summaryResult.eliteDefeated ? `${contract.elite.callsign} down // bonus secured` : `${contract.elite.callsign} remained on the board` : 'No elite attached' : contract.elite ? contract.elite.callsign : 'No elite attached');
   setText('#summaryUnlocksValue', unlockLabels.length > 0 ? unlockLabels.join(' // ') : 'No new unlocks');
+  setText('#summaryCarryValue', carrySummary?.value ?? 'No rewards logged');
+  setText('#summaryCarryDetail', carrySummary?.detail ?? 'Finish a contract to lock rewards and campaign state into the profile.');
+  setText('#summaryLossValue', lossSummary?.value ?? 'No losses logged');
+  setText('#summaryLossDetail', lossSummary?.detail ?? 'Successes keep the route moving; failures should still leave a readable recovery path with preserved salvage, named losses, and a clear retry target.');
+  setText('#summaryPressureValue', pressureSummary?.value ?? 'No pressure change');
+  setText('#summaryPressureDetail', pressureSummary?.detail ?? 'Faction trust and hostile heat will update here after a resolved run.');
+  setText('#summaryNextMoveValue', nextMoveSummary?.value ?? 'Pick the next ladder target');
+  setText('#summaryNextMoveDetail', nextMoveSummary?.detail ?? 'The shell will point at the strongest contract, armory, or cyberware follow-up after each run.');
   setText('#bankTicker', formatCredits(campaign.bankCredits));
   setText('#victoryTicker', `${campaign.victories}`);
   setText('#heatTicker', `${campaign.factions[contract.hostileFaction].heat}`);
@@ -903,6 +1615,7 @@ const handleHudUpdate = (snapshot: HudSnapshot) => {
   setText('#dossierRepValue', signedValue(campaign.factions[contract.clientFaction].reputation));
   setText('#dossierHeatValue', `${campaign.factions[contract.hostileFaction].heat}`);
   setText('#dossierFactionBody', `${FACTION_DETAILS[contract.clientFaction].shortName} trust sits at ${signedValue(campaign.factions[contract.clientFaction].reputation)}. ${FACTION_DETAILS[contract.hostileFaction].shortName} heat is ${campaign.factions[contract.hostileFaction].heat}, so the route is only getting meaner.`);
+  renderCaptureDirective(snapshot);
   restartButton.textContent = snapshot.victory ? 'Run Another Contract' : snapshot.gameOver ? 'Reboot Run' : 'Reset Contract';
   activateSweepButton.disabled = snapshot.combatActive || snapshot.contractResolved;
   activateSweepButton.textContent = snapshot.victory ? 'Contract Complete' : snapshot.gameOver ? 'Sweep Lost' : snapshot.combatActive ? 'Sweep Live' : 'Activate Sweep';
@@ -1080,6 +1793,20 @@ restartButton.addEventListener('click', () => {
   latestRunResult = null;
   runtime?.restart();
   crazyGameplayStart();
+});
+campaignSnapshot.addEventListener('click', (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-profile-action]');
+  const action = target?.dataset.profileAction;
+  if (!action) return;
+
+  if (action === 'reset') {
+    confirmAndNavigateToReset();
+    return;
+  }
+
+  if (action === 'live' || action === 'review') {
+    window.location.href = buildCanonicalShellUrl(action);
+  }
 });
 activateSweepButton.addEventListener('click', () => {
   unlockAudio();
