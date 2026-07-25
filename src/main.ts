@@ -364,8 +364,8 @@ app.innerHTML = `
             <div class="stat"><span>Weapon</span><strong id="weaponValue">Volley</strong></div>
             <div class="stat"><span>Hostiles</span><strong id="enemyCountValue">0</strong></div>
           </div>
-          <div class="controls-card">
-            <div class="eyebrow">First minute</div>
+          <details class="controls-card" id="controlsCard" open>
+            <summary class="eyebrow">First minute</summary>
             <ul>
               <li><strong>Move:</strong> WASD</li>
               <li><strong>Aim + fire:</strong> mouse</li>
@@ -375,7 +375,7 @@ app.innerHTML = `
               <li><strong>Retry:</strong> R or Reset Contract</li>
               <li><strong>After a wipe:</strong> read the debrief for carry-forward and next move before re-entering</li>
             </ul>
-          </div>
+          </details>
         </section>
       </div>
 
@@ -1897,6 +1897,18 @@ summaryBriefingButton.addEventListener('click', () => {
 window.addEventListener('pointerdown', () => {
   unlockAudio();
 }, { once: true });
+
+// The control reference is only useful until you are actually playing; once a
+// movement key is pressed it collapses so it stops covering the district.
+const controlsCard = document.getElementById('controlsCard') as HTMLDetailsElement | null;
+if (controlsCard) {
+  const collapseOnPlay = (event: KeyboardEvent) => {
+    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code)) return;
+    controlsCard.open = false;
+    window.removeEventListener('keydown', collapseOnPlay);
+  };
+  window.addEventListener('keydown', collapseOnPlay);
+}
 window.addEventListener('beforeunload', () => {
   audioDirector?.destroy();
   runtime?.destroy();

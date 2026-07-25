@@ -366,6 +366,22 @@ a {
   opacity: 0.22;
 }
 
+/* The recon guide is onboarding copy - once the district goes loud it should
+   get out of the way of the fight instead of sitting over the playfield. */
+.tactical-banner {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.game-frame[data-capture-state="elite"] .tactical-banner,
+.game-frame[data-capture-state="hold"] .tactical-banner,
+.game-frame[data-capture-state="combat"] .tactical-banner,
+.game-frame[data-capture-state="extract"] .tactical-banner,
+.game-frame[data-capture-state="aftermath"] .tactical-banner {
+  opacity: 0;
+  transform: translateY(-12px);
+  pointer-events: none;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -465,14 +481,17 @@ a {
   text-align: right;
 }
 
+/* The tactical banner and the capture directive share the top of the frame.
+   Anchoring one to the centre and the other to the right made them collide on
+   a ~1000px stage, so both are edge-anchored with widths that cannot sum
+   past the frame. */
 .tactical-banner {
   position: absolute;
-  left: 50%;
+  left: 24px;
   top: 36px;
   z-index: 5;
-  width: min(420px, calc(100% - 140px));
+  width: min(420px, calc(58% - 24px));
   padding: 16px 18px;
-  transform: translateX(-50%);
   border: 1px solid rgba(76, 239, 255, 0.18);
   border-radius: 22px;
   backdrop-filter: blur(18px);
@@ -1302,7 +1321,7 @@ a {
   top: 34px;
   right: 24px;
   z-index: 5;
-  width: min(320px, calc(100% - 140px));
+  width: min(320px, calc(38% - 24px));
   padding: 16px 18px;
   border: 1px solid rgba(255, 188, 120, 0.22);
   border-radius: 22px;
