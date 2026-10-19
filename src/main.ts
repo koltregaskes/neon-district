@@ -92,8 +92,12 @@ app.innerHTML = `
         <div class="eyebrow">Phase Two Browser Slice</div>
         <div class="briefing-grid">
           <section class="briefing-hero">
-            <p class="briefing-kicker" id="briefingKicker">Contract network // Vanta Stack</p>
-            <h1>Neon District</h1>
+            <div class="briefing-keyart" role="img" aria-label="Rain-soaked neon street in the district">
+              <div class="briefing-keyart__caption">
+                <p class="briefing-kicker" id="briefingKicker">Contract network // Vanta Stack</p>
+                <h1>Neon District</h1>
+              </div>
+            </div>
             <p class="briefing-copy" id="briefingCopy">
               The district is open for repeat contracts now. Pick the lane, fit the augment,
               watch faction pressure climb, and turn the combat slice into the start of a real campaign loop.

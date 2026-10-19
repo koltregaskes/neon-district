@@ -937,13 +937,48 @@ a {
   grid-column: 1 / -1;
 }
 
+/* align-content: start matters: without it the grid rows stretched to the
+   height of the long right-hand stack, pushing the title, copy and docket
+   thousands of pixels down and leaving an empty dark panel on screen. */
 .briefing-hero {
   display: grid;
+  align-content: start;
   gap: 18px;
   padding: 10px 8px 0 4px;
 }
 
-.briefing-kicker {
+/* Key art banner: the shell backdrop shown at full strength, with the title
+   set on a gradient so it stays readable. */
+.briefing-keyart {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: clamp(240px, 38vh, 360px);
+  overflow: hidden;
+  border: 1px solid rgba(124, 235, 255, 0.22);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(3, 7, 15, 0) 35%, rgba(3, 7, 15, 0.86) 100%),
+    var(--nd-shell-bg, #050b16) center 62% / cover no-repeat;
+  box-shadow: 0 24px 44px rgba(2, 6, 14, 0.4), inset 0 0 0 1px rgba(255, 121, 207, 0.08);
+}
+
+.briefing-keyart::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px);
+}
+
+.briefing-keyart__caption {
+  position: relative;
+  z-index: 1;
+  padding: 0 22px 20px;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.7);
+}
+
+.briefing-keyart .briefing-kicker {
   margin-bottom: 8px;
 }
 
@@ -957,13 +992,13 @@ a {
 }
 
 .briefing-hero h1 {
-  font-size: clamp(3.8rem, 7vw, 6rem);
+  font-size: clamp(3.2rem, 6vw, 5.2rem);
   line-height: 0.9;
 }
 
 .briefing-copy {
   max-width: 640px;
-  margin: 18px 0 0;
+  margin: 0;
   color: #c4d6e8;
   font-size: clamp(1rem, 1.6vw, 1.24rem);
 }
@@ -972,7 +1007,6 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 18px;
 }
 
 .briefing-tags span {
