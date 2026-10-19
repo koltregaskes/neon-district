@@ -402,15 +402,12 @@ export class GameScene extends Phaser.Scene {
     this.cachedViewportHeight = this.scale.height;
   }
 
+  // Two triangles rather than a path: fillPath runs a polygon triangulator on
+  // every call, which is the expensive part when the static layer redraws.
   private fillQuad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, color: number, alpha: number) {
     this.graphics.fillStyle(color, alpha);
-    this.graphics.beginPath();
-    this.graphics.moveTo(a.x, a.y);
-    this.graphics.lineTo(b.x, b.y);
-    this.graphics.lineTo(c.x, c.y);
-    this.graphics.lineTo(d.x, d.y);
-    this.graphics.closePath();
-    this.graphics.fillPath();
+    this.graphics.fillTriangle(a.x, a.y, b.x, b.y, c.x, c.y);
+    this.graphics.fillTriangle(a.x, a.y, c.x, c.y, d.x, d.y);
   }
 
   // Lit window grid on one wall face. The face runs from `left` to `right` along
@@ -426,14 +423,14 @@ export class GameScene extends Phaser.Scene {
     faceShade: number,
   ) {
     const faceLength = Math.hypot(right.x - left.x, right.y - left.y);
-    const columns = Math.max(2, Math.floor(faceLength / 24));
-    const rows = Math.max(1, Math.floor((height - 18) / 24));
+    const columns = Math.max(2, Math.floor(faceLength / 30));
+    const rows = Math.max(1, Math.floor((height - 18) / 28));
     const colStep = 1 / columns;
     const rowStep = (height - 18) / rows;
     for (let row = 0; row < rows; row += stride) {
       for (let col = 0; col < columns; col += 1) {
         const hash = Math.abs(Math.sin(seed * 12.9898 + row * 78.233 + col * 37.719) * 43758.5453) % 1;
-        if (hash < 0.42) continue;
+        if (hash < 0.5) continue;
         const u0 = col * colStep + colStep * 0.24;
         const u1 = col * colStep + colStep * 0.76;
         const v0 = 10 + row * rowStep + rowStep * 0.28;
@@ -444,7 +441,7 @@ export class GameScene extends Phaser.Scene {
         });
         const warm = hash > 0.86;
         const color = warm ? 0xffd9a0 : glow;
-        const alpha = (warm ? 0.62 : 0.5) * faceShade + (hash - 0.42) * 0.3;
+        const alpha = (warm ? 0.62 : 0.5) * faceShade + (hash - 0.5) * 0.3;
         this.fillQuad(p(u0, v0), p(u1, v0), p(u1, v1), p(u0, v1), color, alpha);
       }
     }
@@ -526,11 +523,18 @@ export class GameScene extends Phaser.Scene {
     this.graphics.strokePoints([baseSW, baseSE, baseNE], false);
 
     if (renderProfile.drawObstacleSigns && obstacle.height >= 80) {
+      // Rooftop sign as a plain quad. Rounded rects are built from arcs and were
+      // the single most expensive thing in the static layer under software GL.
       const signPoint = this.projectPoint({ x: obstacle.x, y: obstacle.y }, anchorX, anchorY, cameraTarget, obstacle.height + 26);
-      this.graphics.fillStyle(0x03070d, 0.78);
-      this.graphics.fillRoundedRect(signPoint.x - 44, signPoint.y - 10, 88, 22, 8);
+      const signBox = [
+        { x: signPoint.x - 44, y: signPoint.y - 10 },
+        { x: signPoint.x + 44, y: signPoint.y - 10 },
+        { x: signPoint.x + 44, y: signPoint.y + 12 },
+        { x: signPoint.x - 44, y: signPoint.y + 12 },
+      ];
+      this.fillQuad(signBox[0], signBox[1], signBox[2], signBox[3], 0x03070d, 0.78);
       this.graphics.lineStyle(1, glow, 0.8);
-      this.graphics.strokeRoundedRect(signPoint.x - 44, signPoint.y - 10, 88, 22, 8);
+      this.graphics.strokePoints(signBox, true);
       this.graphics.lineStyle(1, glow, 0.45);
       this.graphics.beginPath();
       this.graphics.moveTo(signPoint.x - 32, signPoint.y + 1);
