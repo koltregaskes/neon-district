@@ -86,7 +86,7 @@ document.documentElement.style.setProperty(
 );
 
 app.innerHTML = `
-  <div class="shell">
+  <div class="shell" data-mode="briefing">
     <div class="briefing-overlay" id="briefingOverlay">
       <div class="briefing-panel">
         <div class="eyebrow">Phase Two Browser Slice</div>
@@ -246,24 +246,7 @@ app.innerHTML = `
 
     <div class="game-shell" id="gameShell">
       <div class="game-frame">
-        <section class="tactical-banner">
-          <div class="eyebrow">Tactical guide</div>
-          <strong id="tutorialTitle">Ghost the lanes</strong>
-          <p id="tutorialBody">Use WASD to move through the district and read the cover rhythm before you light the contract up.</p>
-          <div class="meter meter--tutorial"><span id="tutorialMeter"></span></div>
-          <div class="banner-row">
-            <span id="tutorialStepValue">1 / 6</span>
-            <strong id="tutorialStatus">Recon onboarding</strong>
-          </div>
-        </section>
-
-        <section class="capture-directive" aria-live="polite">
-          <div class="eyebrow" id="captureDirectiveLabel">Capture target</div>
-          <strong id="captureDirectiveValue">Shell promise frame</strong>
-          <p id="captureDirectiveDetail">Lead with a clean shell read before the district fills the frame.</p>
-        </section>
-
-        <div id="game-root" class="game-root" tabindex="0"></div>
+        <div id="game-root" class="game-root" tabindex="0" role="application" aria-label="District playfield"></div>
 
         <section class="mission-summary" id="missionSummary" aria-hidden="true" hidden>
           <div class="eyebrow" id="summaryEyebrow">Contract outcome</div>
@@ -310,30 +293,27 @@ app.innerHTML = `
           </div>
         </section>
 
+        <!-- In-frame HUD. Vitals and the objective stay visible; everything else is a
+             collapsible dock (details/summary) whose open state is remembered, and each
+             corner is one stacked column so cards can no longer overlap each other. -->
         <section class="hud-panel hud-panel--left">
-          <div class="hud-chip">
-            <span class="hud-chip__label">District</span>
-            <strong id="districtName">Neon District // Vanta Stack</strong>
-            <span id="districtStatus">District quiet. Contract board live.</span>
-          </div>
-          <div class="meter-block">
-            <div class="meter-row"><span>Health</span><strong id="healthValue">100 / 100</strong></div>
-            <div class="meter"><span id="healthMeter"></span></div>
-          </div>
-          <div class="meter-block">
-            <div class="meter-row"><span>Shield</span><strong id="shieldValue">75 / 75</strong></div>
-            <div class="meter meter--shield"><span id="shieldMeter"></span></div>
-          </div>
-          <div class="meter-grid">
-            <div class="meter-block meter-block--compact">
-              <div class="meter-row"><span>Energy</span><strong id="energyValue">100 / 100</strong></div>
-              <div class="meter meter--energy"><span id="energyMeter"></span></div>
+          <div class="hud-vitals">
+            <div class="hud-vitals__district">
+              <strong id="districtName">Neon District // Vanta Stack</strong>
+              <span id="districtStatus">District quiet. Contract board live.</span>
             </div>
-            <div class="meter-block meter-block--compact">
-              <div class="meter-row"><span>Heat</span><strong id="heatValue">0%</strong></div>
-              <div class="meter meter--heat"><span id="heatMeter"></span></div>
-            </div>
+            <div class="vital"><span>HP</span><div class="meter"><span id="healthMeter"></span></div><strong id="healthValue">100 / 100</strong></div>
+            <div class="vital"><span>Shield</span><div class="meter meter--shield"><span id="shieldMeter"></span></div><strong id="shieldValue">75 / 75</strong></div>
+            <div class="vital"><span>Energy</span><div class="meter meter--energy"><span id="energyMeter"></span></div><strong id="energyValue">100 / 100</strong></div>
+            <div class="vital"><span>Heat</span><div class="meter meter--heat"><span id="heatMeter"></span></div><strong id="heatValue">0%</strong></div>
           </div>
+          <details class="hud-dock tactical-banner" data-dock="guide" open>
+            <summary><span class="eyebrow">Tactical guide</span><span class="hud-dock__peek" id="tutorialStepValue">1 / 6</span></summary>
+            <strong id="tutorialTitle">Ghost the lanes</strong>
+            <p id="tutorialBody">Use WASD to move through the district and read the cover rhythm before you light the contract up.</p>
+            <div class="meter meter--tutorial"><span id="tutorialMeter"></span></div>
+            <div class="banner-row"><strong id="tutorialStatus">Recon onboarding</strong></div>
+          </details>
         </section>
 
         <section class="hud-panel hud-panel--right">
@@ -344,14 +324,19 @@ app.innerHTML = `
             <div class="meter-row mission-row"><span id="missionStatus">Recon mode</span><strong id="missionProgressValue">0%</strong></div>
             <div class="meter meter--mission"><span id="missionMeter"></span></div>
           </div>
-          <div class="narrative-card">
-            <div class="eyebrow">Encounter stack</div>
+          <details class="hud-dock capture-directive" data-dock="directive" aria-live="polite">
+            <summary><span class="eyebrow" id="captureDirectiveLabel">Capture target</span></summary>
+            <strong id="captureDirectiveValue">Shell promise frame</strong>
+            <p id="captureDirectiveDetail">Lead with a clean shell read before the district fills the frame.</p>
+          </details>
+          <details class="hud-dock narrative-card" data-dock="encounter">
+            <summary><span class="eyebrow">Encounter stack</span></summary>
             <div class="intel-kv"><span>Cyberware</span><strong id="cyberwareTitleValue">Subdermal Mesh</strong></div>
             <div class="intel-kv"><span>Armory</span><strong id="armoryStatusValue">Stock calibration</strong></div>
             <div class="intel-kv"><span>Elite</span><strong id="eliteStatusValue">No elite on route</strong></div>
             <div class="intel-kv"><span>Hazards</span><strong id="hazardStatusValue">Pressure-only route</strong></div>
             <p id="eliteDetailValue">This contract is a baseline route check with no elite attached.</p>
-          </div>
+          </details>
         </section>
 
         <section class="hud-panel hud-panel--bottom">
@@ -364,8 +349,8 @@ app.innerHTML = `
             <div class="stat"><span>Weapon</span><strong id="weaponValue">Volley</strong></div>
             <div class="stat"><span>Hostiles</span><strong id="enemyCountValue">0</strong></div>
           </div>
-          <details class="controls-card" id="controlsCard" open>
-            <summary class="eyebrow">First minute</summary>
+          <details class="hud-dock controls-card" id="controlsCard" data-dock="controls" open>
+            <summary><span class="eyebrow">First minute</span></summary>
             <ul>
               <li><strong>Move:</strong> WASD</li>
               <li><strong>Aim + fire:</strong> mouse</li>
@@ -441,6 +426,7 @@ function requireElement<T extends HTMLElement>(selector: string) {
   return element;
 }
 
+const shellRoot = requireElement<HTMLElement>('.shell');
 const gameRoot = requireElement<HTMLElement>('#game-root');
 const gameFrame = requireElement<HTMLElement>('.game-frame');
 const gameShell = requireElement<HTMLElement>('#gameShell');
@@ -528,8 +514,32 @@ let campaignLoadInfo = reviewMode
 let selectedContractId: ContractId = campaign.selectedContractId;
 let selectedCyberwareId: CyberwareId = campaign.selectedCyberwareId;
 let selectedWeapon: WeaponType = campaign.selectedWeapon;
+// HUD layout preferences (which docks are open, whether the intel column is hidden).
+// Kept apart from the campaign save so review mode stays non-persistent for progress.
+type HudPrefs = { intelCollapsed?: boolean; docks: Record<string, boolean> };
+const HUD_PREFS_KEY = 'neon-district.hud-prefs.v1';
+const loadHudPrefs = (): HudPrefs => {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(HUD_PREFS_KEY) ?? 'null') as HudPrefs | null;
+    if (parsed && typeof parsed === 'object' && parsed.docks && typeof parsed.docks === 'object') {
+      return parsed;
+    }
+  } catch {
+    // Storage blocked or corrupt: fall back to defaults.
+  }
+  return { docks: {} };
+};
+const hudPrefs = loadHudPrefs();
+const saveHudPrefs = () => {
+  try {
+    window.localStorage.setItem(HUD_PREFS_KEY, JSON.stringify(hudPrefs));
+  } catch {
+    // Non-fatal: the layout just will not be remembered.
+  }
+};
+
 let startMutedOnEntry = false;
-let startIntelCollapsed = false;
+let startIntelCollapsed = hudPrefs.intelCollapsed ?? false;
 let briefingDismissed = false;
 let handledResolution = false;
 let latestRunResult: CampaignRunResult | null = null;
@@ -1412,10 +1422,14 @@ const renderBriefingUi = () => {
   renderBriefingNote();
 };
 
-const setIntelCollapsed = (collapsed: boolean) => {
+const setIntelCollapsed = (collapsed: boolean, remember = false) => {
   gameShell.classList.toggle('game-shell--intel-collapsed', collapsed);
   intelPanel.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
   toggleIntelButton.textContent = collapsed ? 'Show Intel' : 'Hide Intel';
+  if (remember) {
+    hudPrefs.intelCollapsed = collapsed;
+    saveHudPrefs();
+  }
 };
 
 const focusGameRoot = () => {
@@ -1725,6 +1739,7 @@ const showBriefing = () => {
   briefingDismissed = false;
   renderBriefingUi();
   briefingOverlay.classList.remove('is-hidden');
+  shellRoot.dataset.mode = 'briefing';
   if (missionSummary.contains(document.activeElement)) {
     focusBriefingEntry();
   }
@@ -1735,6 +1750,8 @@ const showBriefing = () => {
 
 const dismissBriefing = async (activateSweep = false, shouldUnlock = true) => {
   setEntryLoadingState(true);
+  // Switch the shell to its playfield-first layout before the runtime measures its mount.
+  shellRoot.dataset.mode = 'play';
   setText('#statusTicker', reviewMode ? showcaseMode ? 'Booting showcase route.' : hazardReviewMode ? 'Booting hazard review slice.' : bossReviewMode ? 'Booting boss review slice.' : showcaseReviewMode ? 'Booting featured authored review slice.' : 'Booting deterministic review slice.' : 'Booting district runtime.');
 
   try {
@@ -1761,6 +1778,7 @@ const dismissBriefing = async (activateSweep = false, shouldUnlock = true) => {
     setText('#statusTicker', 'District boot failed. Retry entry.');
     briefingNote.textContent = 'District boot failed. Retry entry or refresh the page.';
     briefingOverlay.classList.remove('is-hidden');
+    shellRoot.dataset.mode = 'briefing';
   } finally {
     setEntryLoadingState(false);
   }
@@ -1782,6 +1800,7 @@ if (requestedContractId && requestedContractId in CONTRACTS_BY_ID) {
 renderBriefingUi();
 applySelectionsToRuntime();
 setIntelCollapsed(false);
+hideIntelCheckbox.checked = startIntelCollapsed;
 
 if (autostartMode || legacySkipBriefing || hotDropMode) {
   void dismissBriefing(hotDropMode, false);
@@ -1793,6 +1812,7 @@ restartButton.addEventListener('click', () => {
   latestRunResult = null;
   runtime?.restart();
   crazyGameplayStart();
+  if (briefingDismissed) focusGameRoot();
 });
 campaignSnapshot.addEventListener('click', (event) => {
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-profile-action]');
@@ -1811,6 +1831,7 @@ campaignSnapshot.addEventListener('click', (event) => {
 activateSweepButton.addEventListener('click', () => {
   unlockAudio();
   runtime?.activateSweep();
+  if (briefingDismissed) focusGameRoot();
 });
 audioToggleButton.addEventListener('click', () => {
   if (!audioDirector) {
@@ -1826,7 +1847,8 @@ audioToggleButton.addEventListener('click', () => {
   updateAudioButton();
 });
 toggleIntelButton.addEventListener('click', () => {
-  setIntelCollapsed(!gameShell.classList.contains('game-shell--intel-collapsed'));
+  setIntelCollapsed(!gameShell.classList.contains('game-shell--intel-collapsed'), true);
+  if (briefingDismissed) focusGameRoot();
 });
 beginContractButton.addEventListener('click', () => {
   void dismissBriefing(false, true);
@@ -1879,6 +1901,8 @@ startMutedCheckbox.addEventListener('change', () => {
 });
 hideIntelCheckbox.addEventListener('change', () => {
   startIntelCollapsed = hideIntelCheckbox.checked;
+  hudPrefs.intelCollapsed = startIntelCollapsed;
+  saveHudPrefs();
 });
 summaryReplayButton.addEventListener('click', () => {
   unlockAudio();
@@ -1898,16 +1922,37 @@ window.addEventListener('pointerdown', () => {
   unlockAudio();
 }, { once: true });
 
-// The control reference is only useful until you are actually playing; once a
-// movement key is pressed it collapses so it stops covering the district.
-const controlsCard = document.getElementById('controlsCard') as HTMLDetailsElement | null;
-if (controlsCard) {
-  const collapseOnPlay = (event: KeyboardEvent) => {
-    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code)) return;
-    controlsCard.open = false;
-    window.removeEventListener('keydown', collapseOnPlay);
-  };
-  window.addEventListener('keydown', collapseOnPlay);
+// HUD docks: every <details data-dock> remembers whether it is open. The onboarding
+// docks (tactical guide, first-minute controls) start open on a first visit and fold
+// away on the first movement key, so play frames show the district, not the manual.
+const hudDocks = [...document.querySelectorAll<HTMLDetailsElement>('details[data-dock]')];
+const AUTO_FOLD_DOCKS = new Set(['guide', 'controls']);
+hudDocks.forEach((dock) => {
+  const key = dock.dataset.dock ?? '';
+  const stored = hudPrefs.docks[key];
+  if (typeof stored === 'boolean') {
+    dock.open = stored;
+  }
+  dock.addEventListener('toggle', () => {
+    if (hudPrefs.docks[key] === dock.open) return;
+    hudPrefs.docks[key] = dock.open;
+    saveHudPrefs();
+  });
+  // A click on a dock header should not leave focus parked on the summary.
+  dock.querySelector('summary')?.addEventListener('click', () => {
+    window.setTimeout(focusGameRoot, 0);
+  });
+});
+const foldOnboardingOnPlay = (event: KeyboardEvent) => {
+  if (!briefingDismissed) return;
+  if (!['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code)) return;
+  hudDocks.forEach((dock) => {
+    if (AUTO_FOLD_DOCKS.has(dock.dataset.dock ?? '')) dock.open = false;
+  });
+  window.removeEventListener('keydown', foldOnboardingOnPlay);
+};
+if (hudDocks.some((dock) => AUTO_FOLD_DOCKS.has(dock.dataset.dock ?? '') && dock.open)) {
+  window.addEventListener('keydown', foldOnboardingOnPlay);
 }
 window.addEventListener('beforeunload', () => {
   audioDirector?.destroy();

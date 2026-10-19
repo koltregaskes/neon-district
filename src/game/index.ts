@@ -44,6 +44,10 @@ export function createNeonDistrictGame(
     const width = Math.max(640, mount.clientWidth);
     const height = Math.max(480, mount.clientHeight);
     game.scale.resize(width, height);
+    // In RESIZE mode resize() re-reads the parent bounds only at its end, so a
+    // layout change (entering play mode, hiding intel) can leave the canvas at
+    // its old size. refresh() makes the new mount size stick.
+    game.scale.refresh();
   });
 
   resizeObserver.observe(mount);

@@ -302,6 +302,13 @@ a {
     #02060d;
 }
 
+/* Keyboard focus lives on the playfield while a contract is live; keep the
+   focus ring visible but quiet so it does not frame every screenshot in white. */
+.game-root:focus-visible {
+  outline: 2px solid rgba(76, 239, 255, 0.32);
+  outline-offset: -2px;
+}
+
 .game-root::before,
 .game-root::after {
   content: "";
@@ -481,30 +488,24 @@ a {
   text-align: right;
 }
 
-/* The tactical banner and the capture directive share the top of the frame.
-   Anchoring one to the centre and the other to the right made them collide on
-   a ~1000px stage, so both are edge-anchored with widths that cannot sum
-   past the frame. */
+/* The tactical guide and the capture directive used to be absolutely placed on
+   top of the frame, where they collided with the objective card. They now live
+   inside the left and right HUD columns as collapsible docks, so each corner is
+   one stack and nothing can overlap. */
 .tactical-banner {
-  position: absolute;
-  left: 24px;
-  top: 36px;
-  z-index: 5;
-  width: min(420px, calc(58% - 24px));
-  padding: 16px 18px;
-  border: 1px solid rgba(76, 239, 255, 0.18);
-  border-radius: 22px;
-  backdrop-filter: blur(18px);
-  background: rgba(6, 12, 22, 0.78);
-  box-shadow: 0 20px 36px rgba(2, 7, 15, 0.28);
-  pointer-events: none;
+  border-color: rgba(76, 239, 255, 0.18);
 }
 
 .tactical-banner strong {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--text);
-  font-size: 1.18rem;
+  font-size: 1rem;
+}
+
+.tactical-banner .meter {
+  margin-top: 10px;
+  height: 6px;
 }
 
 .tactical-banner p,
@@ -526,7 +527,7 @@ a {
 }
 
 .banner-row {
-  margin-top: 10px;
+  margin-top: 8px;
   color: #aac2d8;
   font-size: 0.82rem;
   letter-spacing: 0.08em;
@@ -536,36 +537,152 @@ a {
 .hud-panel {
   position: absolute;
   z-index: 4;
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   pointer-events: none;
 }
 
 .hud-panel--left {
-  left: 30px;
-  top: 110px;
-  width: min(330px, calc(100% - 60px));
+  left: 26px;
+  top: 26px;
+  width: min(268px, calc(50% - 40px));
+  max-height: calc(100% - 120px);
 }
 
 .hud-panel--right {
-  right: 30px;
-  top: 110px;
-  width: min(340px, calc(100% - 60px));
+  right: 26px;
+  top: 26px;
+  width: min(300px, calc(50% - 40px));
+  max-height: calc(100% - 120px);
 }
 
 .hud-panel--bottom {
-  left: 30px;
-  right: 30px;
-  bottom: 30px;
-  grid-template-columns: 1.45fr minmax(240px, 0.8fr);
-  align-items: end;
+  left: 26px;
+  right: 26px;
+  bottom: 22px;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+/* Compact vitals: one card, four thin bars. */
+.hud-vitals {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(152, 192, 232, 0.14);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  background: rgba(5, 11, 20, 0.7);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
+}
+
+.hud-vitals__district {
+  display: grid;
+  margin-bottom: 2px;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.hud-vitals__district strong,
+.hud-vitals__district span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hud-vitals__district strong {
+  color: var(--text);
+}
+
+.hud-vitals__district span {
+  color: #93abc3;
+}
+
+.vital {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 66px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+
+.vital > span {
+  color: #93abc3;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.vital strong {
+  color: var(--text);
+  text-align: right;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.vital .meter {
+  height: 6px;
+}
+
+/* Collapsible HUD docks (details/summary). The header stays clickable even
+   though the HUD lets clicks fall through to the canvas everywhere else. */
+.hud-dock {
+  padding: 9px 12px;
+  border: 1px solid rgba(152, 192, 232, 0.14);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  background: rgba(5, 11, 20, 0.72);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
+  font-size: 0.86rem;
+}
+
+.hud-dock > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  list-style: none;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.hud-dock > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hud-dock > summary .eyebrow {
+  margin: 0;
+  font-size: 0.66rem;
+}
+
+.hud-dock > summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  color: var(--cyan);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hud-dock[open] > summary::after {
+  content: "\2212";
+}
+
+.hud-dock[open] > summary {
+  margin-bottom: 8px;
+}
+
+.hud-dock__peek {
+  margin-left: auto;
+  color: #93abc3;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
 }
 
 .hud-chip,
 .meter-block,
 .mission-card,
-.narrative-card,
-.controls-card,
 .stat-cluster {
   border: 1px solid rgba(152, 192, 232, 0.14);
   border-radius: 20px;
@@ -574,11 +691,35 @@ a {
   box-shadow: 0 16px 32px rgba(0, 0, 0, 0.22);
 }
 
-.hud-chip,
-.mission-card,
-.narrative-card,
-.controls-card {
+.hud-chip {
   padding: 16px 18px;
+}
+
+.mission-card {
+  padding: 11px 14px 12px;
+}
+
+.mission-card .eyebrow {
+  margin-bottom: 4px;
+  font-size: 0.66rem;
+}
+
+.mission-card p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 8px;
+  font-size: 0.84rem;
+}
+
+.mission-card .mission-row {
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+.mission-card .meter {
+  height: 6px;
 }
 
 .hud-chip strong,
@@ -666,31 +807,56 @@ a {
   box-shadow: 0 0 18px rgba(36, 240, 255, 0.34);
 }
 
-.mission-card h2,
 .dossier-card h2 {
   margin-bottom: 10px;
   font-size: clamp(1.5rem, 2vw, 2.2rem);
 }
 
+.mission-card h2 {
+  margin-bottom: 4px;
+  font-size: 1.18rem;
+  line-height: 1.15;
+}
+
 .stat-cluster {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
-  padding: 14px;
-  border-radius: 24px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: 0;
+  padding: 5px;
+  border-radius: 14px;
 }
 
 .stat {
-  min-height: 96px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  min-width: 0;
+  padding: 5px 10px;
+  border-radius: 10px;
   background: rgba(9, 17, 29, 0.84);
   border: 1px solid rgba(135, 185, 236, 0.08);
 }
 
+.stat span {
+  font-size: 0.6rem;
+  white-space: nowrap;
+}
+
 .stat strong {
-  margin-top: 6px;
-  font-size: 1.12rem;
+  margin-top: 1px;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.controls-card {
+  flex: 0 0 auto;
+  width: 250px;
+}
+
+.controls-card ul {
+  font-size: 0.8rem;
+}
+
+.controls-card li + li {
+  margin-top: 4px;
 }
 
 .controls-card ul,
@@ -700,7 +866,6 @@ a {
   padding-left: 1rem;
 }
 
-.controls-card li + li,
 .briefing-list li + li,
 .intel-list li + li {
   margin-top: 8px;
@@ -776,6 +941,10 @@ a {
   display: grid;
   gap: 18px;
   padding: 10px 8px 0 4px;
+}
+
+.briefing-kicker {
+  margin-bottom: 8px;
 }
 
 .briefing-kicker {
@@ -1317,25 +1486,15 @@ a {
 }
 
 .capture-directive {
-  position: absolute;
-  top: 34px;
-  right: 24px;
-  z-index: 5;
-  width: min(320px, calc(38% - 24px));
-  padding: 16px 18px;
-  border: 1px solid rgba(255, 188, 120, 0.22);
-  border-radius: 22px;
+  border-color: rgba(255, 188, 120, 0.22);
   background: rgba(11, 18, 29, 0.78);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 18px 34px rgba(2, 7, 15, 0.24);
-  pointer-events: none;
 }
 
 .capture-directive strong {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--text);
-  font-size: 1.08rem;
+  font-size: 0.96rem;
 }
 
 .capture-directive p {
@@ -1413,8 +1572,24 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .hud-panel--left,
+  .hud-panel--right {
+    width: auto;
+    max-height: none;
+  }
+
+  .hud-panel--bottom {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .stat-cluster {
+    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .controls-card {
+    width: auto;
   }
 
   .side-dossier {
@@ -1461,18 +1636,7 @@ a {
   }
 
   .tactical-banner {
-    position: static;
-    width: 100%;
-    margin-bottom: 12px;
     transform: none;
-    pointer-events: auto;
-  }
-
-  .capture-directive {
-    position: static;
-    width: 100%;
-    margin-bottom: 12px;
-    pointer-events: auto;
   }
 
   .hud-panel--left,
@@ -1549,6 +1713,122 @@ a {
 
   .summary-actions .control-button {
     width: 100%;
+  }
+}
+
+/* Playfield-first layout while a contract is live (desktop widths only; the
+   tablet and phone rules above already stack the HUD under the canvas).
+   The ribbon becomes one slim row and the frame is sized to the viewport so
+   the whole district, HUD included, sits above the fold. */
+@media (min-width: 1101px) {
+  .shell[data-mode="play"] {
+    padding: 12px 18px 14px;
+  }
+
+  .shell[data-mode="play"] .top-ribbon {
+    align-items: center;
+    gap: 16px;
+    height: 52px;
+    margin-bottom: 10px;
+  }
+
+  .shell[data-mode="play"] .title-stack {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: baseline;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .shell[data-mode="play"] .title-stack .eyebrow {
+    display: none;
+  }
+
+  .shell[data-mode="play"] .title-stack h1 {
+    font-size: 1.9rem;
+    white-space: nowrap;
+  }
+
+  .shell[data-mode="play"] .status-ticker {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 0.86rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .shell[data-mode="play"] .ops-rail {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .shell[data-mode="play"] .ops-chip {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    padding: 6px 12px;
+    border-radius: 12px;
+  }
+
+  .shell[data-mode="play"] .ops-chip strong {
+    margin: 0;
+    font-size: 0.98rem;
+  }
+
+  .shell[data-mode="play"] .run-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .shell[data-mode="play"] .top-ribbon .control-button,
+  .shell[data-mode="play"] .top-ribbon .audio-toggle {
+    padding: 0.55rem 0.9rem;
+    font-size: 0.78rem;
+  }
+
+  .shell[data-mode="play"] .game-frame {
+    height: calc(100vh - 88px);
+    min-height: 0;
+    padding: 10px;
+  }
+
+  .shell[data-mode="play"] .game-root {
+    height: 100%;
+  }
+}
+
+/* Wide screens: the intel dossier docks as a slim scrolling column beside the
+   playfield instead of a second, taller page column. */
+@media (min-width: 1381px) {
+  .shell[data-mode="play"] .game-shell {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 14px;
+  }
+
+  .shell[data-mode="play"] .game-shell.game-shell--intel-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .shell[data-mode="play"] .side-dossier {
+    align-content: start;
+    gap: 12px;
+    height: calc(100vh - 88px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .shell[data-mode="play"] .dossier-card {
+    padding: 16px 16px 18px;
+    border-radius: 22px;
+    font-size: 0.9rem;
+  }
+
+  .shell[data-mode="play"] .dossier-card h2 {
+    font-size: 1.4rem;
   }
 }
 
