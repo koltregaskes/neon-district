@@ -43,6 +43,32 @@ type KeyMap = {
   R: Phaser.Input.Keyboard.Key;
 };
 
+type FigureSpec = {
+  scale: number;
+  bulk: number;
+  armour: number;
+  plate: number;
+  trim: number;
+  visor: number;
+  ringColor: number;
+  ringAlpha: number;
+  weaponColor: number | null;
+  weaponWidth: number;
+  weaponLength: number;
+  weaponAlpha: number;
+  stride: number;
+};
+
+const PLAYER_RING_COLOR = 0x24f0ff;
+const HOSTILE_RING_COLOR = 0xff3d7f;
+
+function shadeColor(color: number, factor: number) {
+  const r = Math.min(255, Math.round(((color >> 16) & 0xff) * factor));
+  const g = Math.min(255, Math.round(((color >> 8) & 0xff) * factor));
+  const b = Math.min(255, Math.round((color & 0xff) * factor));
+  return (r << 16) | (g << 8) | b;
+}
+
 const SORTED_DISTRICT_OBSTACLES = [...DISTRICT_OBSTACLES].sort((a, b) => a.y - b.y);
 
 const ATMOSPHERE_FOG_BANKS = [
@@ -376,6 +402,54 @@ export class GameScene extends Phaser.Scene {
     this.cachedViewportHeight = this.scale.height;
   }
 
+  private fillQuad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, color: number, alpha: number) {
+    this.graphics.fillStyle(color, alpha);
+    this.graphics.beginPath();
+    this.graphics.moveTo(a.x, a.y);
+    this.graphics.lineTo(b.x, b.y);
+    this.graphics.lineTo(c.x, c.y);
+    this.graphics.lineTo(d.x, d.y);
+    this.graphics.closePath();
+    this.graphics.fillPath();
+  }
+
+  // Lit window grid on one wall face. The face runs from `left` to `right` along
+  // the ground and rises `height` px on screen. Which windows are lit is a stable
+  // hash of the building, so the pattern does not flicker between redraws.
+  private drawFaceWindows(
+    left: Vector2,
+    right: Vector2,
+    height: number,
+    seed: number,
+    glow: number,
+    stride: number,
+    faceShade: number,
+  ) {
+    const faceLength = Math.hypot(right.x - left.x, right.y - left.y);
+    const columns = Math.max(2, Math.floor(faceLength / 24));
+    const rows = Math.max(1, Math.floor((height - 18) / 24));
+    const colStep = 1 / columns;
+    const rowStep = (height - 18) / rows;
+    for (let row = 0; row < rows; row += stride) {
+      for (let col = 0; col < columns; col += 1) {
+        const hash = Math.abs(Math.sin(seed * 12.9898 + row * 78.233 + col * 37.719) * 43758.5453) % 1;
+        if (hash < 0.42) continue;
+        const u0 = col * colStep + colStep * 0.24;
+        const u1 = col * colStep + colStep * 0.76;
+        const v0 = 10 + row * rowStep + rowStep * 0.28;
+        const v1 = 10 + row * rowStep + rowStep * 0.78;
+        const p = (u: number, v: number) => ({
+          x: Phaser.Math.Linear(left.x, right.x, u),
+          y: Phaser.Math.Linear(left.y, right.y, u) - v,
+        });
+        const warm = hash > 0.86;
+        const color = warm ? 0xffd9a0 : glow;
+        const alpha = (warm ? 0.62 : 0.5) * faceShade + (hash - 0.42) * 0.3;
+        this.fillQuad(p(u0, v0), p(u1, v0), p(u1, v1), p(u0, v1), color, alpha);
+      }
+    }
+  }
+
   private drawPrism(
     obstacle: ArenaObstacle,
     anchorX: number,
@@ -408,56 +482,48 @@ export class GameScene extends Phaser.Scene {
 
     const fill = Phaser.Display.Color.HexStringToColor(obstacle.fill).color;
     const glow = Phaser.Display.Color.HexStringToColor(obstacle.glow).color;
+    const seed = obstacle.x * 0.013 + obstacle.y * 0.007 + obstacle.height;
 
-    this.graphics.fillStyle(fill, 0.95);
-    this.graphics.beginPath();
-    this.graphics.moveTo(baseSW.x, baseSW.y);
-    this.graphics.lineTo(baseSE.x, baseSE.y);
-    this.graphics.lineTo(topSE.x, topSE.y);
-    this.graphics.lineTo(topSW.x, topSW.y);
-    this.graphics.closePath();
-    this.graphics.fillPath();
+    // Solid walls: the south face catches the street light, the east face sits in shade.
+    this.fillQuad(baseSW, baseSE, topSE, topSW, shadeColor(fill, 1.25), 1);
+    this.fillQuad(baseSE, baseNE, topNE, topSE, shadeColor(fill, 0.72), 1);
 
-    this.graphics.fillStyle(fill, 0.82);
-    this.graphics.beginPath();
-    this.graphics.moveTo(baseNE.x, baseNE.y);
-    this.graphics.lineTo(baseSE.x, baseSE.y);
-    this.graphics.lineTo(topSE.x, topSE.y);
-    this.graphics.lineTo(topNE.x, topNE.y);
-    this.graphics.closePath();
-    this.graphics.fillPath();
+    // Street-level neon wash along the bottom of each wall.
+    const washHeight = Math.min(26, obstacle.height * 0.3);
+    const lift = (point: Vector2, by: number) => ({ x: point.x, y: point.y - by });
+    this.fillQuad(baseSW, baseSE, lift(baseSE, washHeight), lift(baseSW, washHeight), glow, 0.12);
+    this.fillQuad(baseSE, baseNE, lift(baseNE, washHeight), lift(baseSE, washHeight), glow, 0.07);
 
-    this.graphics.fillStyle(glow, 0.15);
-    this.graphics.beginPath();
-    this.graphics.moveTo(topNW.x, topNW.y);
-    this.graphics.lineTo(topNE.x, topNE.y);
-    this.graphics.lineTo(topSE.x, topSE.y);
-    this.graphics.lineTo(topSW.x, topSW.y);
-    this.graphics.closePath();
-    this.graphics.fillPath();
+    this.drawFaceWindows(baseSW, baseSE, obstacle.height, seed, glow, renderProfile.obstacleWindowStride, 1);
+    this.drawFaceWindows(baseSE, baseNE, obstacle.height, seed + 7, glow, renderProfile.obstacleWindowStride, 0.7);
 
-    this.graphics.lineStyle(2, glow, 0.8);
-    this.graphics.beginPath();
-    this.graphics.moveTo(topNW.x, topNW.y);
-    this.graphics.lineTo(topNE.x, topNE.y);
-    this.graphics.lineTo(topSE.x, topSE.y);
-    this.graphics.lineTo(topSW.x, topSW.y);
-    this.graphics.closePath();
-    this.graphics.strokePath();
+    // Roof slab with a lit parapet edge and an inset service deck.
+    this.fillQuad(topNW, topNE, topSE, topSW, shadeColor(fill, 1.55), 1);
+    const roofCenter = {
+      x: (topNW.x + topNE.x + topSE.x + topSW.x) / 4,
+      y: (topNW.y + topNE.y + topSE.y + topSW.y) / 4,
+    };
+    const inset = (point: Vector2) => ({
+      x: Phaser.Math.Linear(point.x, roofCenter.x, 0.16),
+      y: Phaser.Math.Linear(point.y, roofCenter.y, 0.16),
+    });
+    this.fillQuad(inset(topNW), inset(topNE), inset(topSE), inset(topSW), shadeColor(fill, 1.1), 1);
+    this.graphics.lineStyle(1, glow, 0.32);
+    this.graphics.strokePoints([inset(topNW), inset(topNE), inset(topSE), inset(topSW)], true);
 
-    const windowCount = Math.max(2, Math.floor(obstacle.height / 28));
-    this.graphics.lineStyle(2, glow, 0.22);
-    for (let index = 0; index < windowCount; index += renderProfile.obstacleWindowStride) {
-      const t = (index + 1) / (windowCount + 1);
-      const leftX = Phaser.Math.Linear(baseSW.x, topSW.x, t);
-      const leftY = Phaser.Math.Linear(baseSW.y, topSW.y, t);
-      const rightX = Phaser.Math.Linear(baseSE.x, topSE.x, t);
-      const rightY = Phaser.Math.Linear(baseSE.y, topSE.y, t);
-      this.graphics.beginPath();
-      this.graphics.moveTo(leftX + 12, leftY);
-      this.graphics.lineTo(rightX - 12, rightY);
-      this.graphics.strokePath();
-    }
+    // Vertical edges: the front corner is the brightest line on the building.
+    this.graphics.lineStyle(1.5, glow, 0.38);
+    this.graphics.lineBetween(baseSW.x, baseSW.y, topSW.x, topSW.y);
+    this.graphics.lineBetween(baseNE.x, baseNE.y, topNE.x, topNE.y);
+    this.graphics.lineStyle(2, glow, 0.7);
+    this.graphics.lineBetween(baseSE.x, baseSE.y, topSE.x, topSE.y);
+
+    this.graphics.lineStyle(2, glow, 0.9);
+    this.graphics.strokePoints([topNW, topNE, topSE, topSW], true);
+
+    // Kerb glow where the building meets the street.
+    this.graphics.lineStyle(2, glow, 0.45);
+    this.graphics.strokePoints([baseSW, baseSE, baseNE], false);
 
     if (renderProfile.drawObstacleSigns && obstacle.height >= 80) {
       const signPoint = this.projectPoint({ x: obstacle.x, y: obstacle.y }, anchorX, anchorY, cameraTarget, obstacle.height + 26);
@@ -473,20 +539,128 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // A small isometric figure: team ring at the feet, legs, armoured torso, head
+  // with a visor, and a weapon pointing along the screen-space facing. Everything
+  // is Graphics, drawn per frame so facing and stride follow the simulation.
+  private drawFigure(base: Vector2, facing: Vector2, spec: FigureSpec) {
+    const g = this.graphics;
+    const s = spec.scale;
+    const hipY = base.y - 18 * s;
+    const shoulderY = base.y - 38 * s;
+    const headY = base.y - 48 * s;
+    const side = { x: -facing.y, y: facing.x };
+
+    g.fillStyle(0x02050d, 0.5);
+    g.fillEllipse(base.x, base.y + 2, 40 * s, 15 * s);
+
+    // Soft team-coloured aura behind the body so the silhouette lifts off the street.
+    g.fillStyle(spec.ringColor, 0.14);
+    g.fillEllipse(base.x, base.y - 28 * s, 34 * s, 58 * s);
+
+    // Team ring with a facing notch, so the read is "who" and "which way" at a glance.
+    g.fillStyle(spec.ringColor, 0.12);
+    g.fillEllipse(base.x, base.y, 54 * s, 24 * s);
+    g.lineStyle(2, spec.ringColor, spec.ringAlpha);
+    g.strokeEllipse(base.x, base.y, 54 * s, 24 * s);
+    const notch = { x: base.x + facing.x * 30 * s, y: base.y + facing.y * 13 * s };
+    g.fillStyle(spec.ringColor, Math.min(1, spec.ringAlpha + 0.15));
+    g.fillTriangle(
+      notch.x + facing.x * 7 * s,
+      notch.y + facing.y * 4 * s,
+      notch.x + side.x * 5 * s,
+      notch.y + side.y * 3 * s,
+      notch.x - side.x * 5 * s,
+      notch.y - side.y * 3 * s,
+    );
+
+    const weaponBehind = facing.y < -0.15;
+    const drawWeapon = () => {
+      if (spec.weaponColor === null) return;
+      const grip = { x: base.x + facing.x * 6 * s + side.x * 5 * s, y: shoulderY + 6 * s + facing.y * 3 * s };
+      const muzzle = { x: grip.x + facing.x * spec.weaponLength * s, y: grip.y + facing.y * spec.weaponLength * 0.55 * s };
+      g.lineStyle(spec.weaponWidth * s + 2, 0x050b14, 0.85);
+      g.lineBetween(grip.x, grip.y, muzzle.x, muzzle.y);
+      g.lineStyle(spec.weaponWidth * s, spec.weaponColor, spec.weaponAlpha);
+      g.lineBetween(grip.x, grip.y, muzzle.x, muzzle.y);
+      g.fillStyle(spec.weaponColor, spec.weaponAlpha);
+      g.fillCircle(muzzle.x, muzzle.y, 2.2 * s);
+    };
+
+    if (weaponBehind) drawWeapon();
+
+    // Legs with a simple stride swing while moving.
+    const swing = spec.stride * 5 * s;
+    g.lineStyle(6.5 * s, spec.armour, 1);
+    g.lineBetween(base.x - 5 * s, hipY, base.x - 6 * s + facing.x * swing, base.y - 3 - facing.y * swing * 0.4);
+    g.lineBetween(base.x + 5 * s, hipY, base.x + 6 * s - facing.x * swing, base.y - 3 + facing.y * swing * 0.4);
+    g.lineStyle(1.5, spec.trim, 0.55);
+    g.lineBetween(base.x - 5 * s, hipY, base.x - 6 * s + facing.x * swing, base.y - 3 - facing.y * swing * 0.4);
+    g.lineBetween(base.x + 5 * s, hipY, base.x + 6 * s - facing.x * swing, base.y - 3 + facing.y * swing * 0.4);
+
+    // Torso: broad shoulders tapering to the waist.
+    const torso = [
+      { x: base.x - 13 * s * spec.bulk, y: shoulderY },
+      { x: base.x + 13 * s * spec.bulk, y: shoulderY },
+      { x: base.x + 8 * s, y: hipY },
+      { x: base.x - 8 * s, y: hipY },
+    ];
+    g.fillStyle(spec.armour, 1);
+    g.fillPoints(torso, true);
+    // Lit chest plate on the side facing the street light.
+    g.fillStyle(spec.plate, 0.9);
+    g.fillPoints([
+      { x: base.x - 9 * s * spec.bulk, y: shoulderY + 3 * s },
+      { x: base.x + 9 * s * spec.bulk, y: shoulderY + 3 * s },
+      { x: base.x + 5 * s, y: hipY - 4 * s },
+      { x: base.x - 5 * s, y: hipY - 4 * s },
+    ], true);
+    g.lineStyle(2, spec.trim, 0.95);
+    g.strokePoints(torso, true);
+    // Chest light line, turned a little toward the facing.
+    g.lineStyle(2, spec.trim, 0.85);
+    g.lineBetween(base.x + facing.x * 3 * s - 5 * s, shoulderY + 7 * s, base.x + facing.x * 3 * s + 5 * s, shoulderY + 7 * s);
+
+    // Head and visor. The visor dims when the figure faces away from the camera.
+    g.fillStyle(spec.plate, 1);
+    g.fillCircle(base.x, headY, 8 * s);
+    g.lineStyle(1.5, spec.trim, 0.95);
+    g.strokeCircle(base.x, headY, 8 * s);
+    const visorAlpha = facing.y < -0.35 ? 0.25 : 0.95;
+    g.lineStyle(3 * s, spec.visor, visorAlpha);
+    g.lineBetween(
+      base.x + facing.x * 1.5 * s - side.x * 4 * s,
+      headY + 1 * s - side.y * 2 * s,
+      base.x + facing.x * 5.5 * s + side.x * 3 * s,
+      headY + 1 * s + side.y * 2 * s,
+    );
+
+    if (!weaponBehind) drawWeapon();
+  }
+
   private drawEnemy(enemy: EnemyState, anchorX: number, anchorY: number, cameraTarget: Vector2) {
     const base = this.projectPoint(enemy.position, anchorX, anchorY, cameraTarget);
     const bodyColor = Phaser.Display.Color.HexStringToColor(enemy.glow).color;
-    const bodyY = base.y - (enemy.type === 'brute' ? 26 : enemy.type === 'shield' ? 22 : enemy.type === 'captain' ? 28 : 18);
     const screenFacing = this.toScreenDirection(enemy.facing);
-    this.graphics.fillStyle(0x02050d, 0.42);
-    this.graphics.fillEllipse(base.x, base.y + 12, enemy.radius * 1.2, enemy.radius * 0.7);
+    const scale = 1.2 * (enemy.type === 'brute' ? 1.32 : enemy.type === 'captain' ? 1.36 : enemy.type === 'shield' ? 1.12 : enemy.type === 'runner' ? 0.9 : 1);
+    const bodyY = base.y - 30 * scale;
+    const speed = Math.hypot(enemy.velocity.x, enemy.velocity.y);
+    const stride = speed > 8 ? Math.sin(this.simulation.getState().timeSeconds * 14 + enemy.id) : 0;
 
-    this.graphics.fillStyle(bodyColor, enemy.type === 'brute' ? 0.9 : 0.82);
-    this.graphics.lineStyle(2, 0xffffff, 0.08);
-    this.graphics.fillEllipse(base.x, bodyY, enemy.radius * 1.05, enemy.radius * (enemy.type === 'brute' ? 1.65 : 1.35));
-
-    this.graphics.lineStyle(2, bodyColor, 0.8);
-    this.graphics.strokeEllipse(base.x, bodyY, enemy.radius * 1.05, enemy.radius * (enemy.type === 'brute' ? 1.65 : 1.35));
+    this.drawFigure(base, screenFacing, {
+      scale,
+      bulk: enemy.type === 'brute' ? 1.35 : enemy.type === 'captain' ? 1.2 : 1,
+      armour: shadeColor(bodyColor, 0.3),
+      plate: shadeColor(bodyColor, 0.55),
+      trim: bodyColor,
+      visor: 0xff3d6e,
+      ringColor: HOSTILE_RING_COLOR,
+      ringAlpha: enemy.type === 'captain' ? 0.95 : 0.72,
+      weaponColor: enemy.type === 'brute' || enemy.type === 'runner' || enemy.type === 'shield' ? null : bodyColor,
+      weaponWidth: enemy.type === 'sniper' ? 2.5 : 3.5,
+      weaponLength: enemy.type === 'sniper' ? 30 : 20,
+      weaponAlpha: 0.9,
+      stride,
+    });
 
     if (enemy.type === 'runner') {
       this.graphics.lineStyle(2, bodyColor, 0.55);
@@ -497,23 +671,16 @@ export class GameScene extends Phaser.Scene {
       this.graphics.lineTo(base.x - screenFacing.x * 22 - screenFacing.y * 6, bodyY - 10 - screenFacing.y * 14);
       this.graphics.strokePath();
     } else if (enemy.type === 'gunner') {
-      this.graphics.fillStyle(0x08131d, 0.9);
-      this.graphics.fillRoundedRect(base.x - 16, bodyY - 10, 32, 10, 4);
       this.graphics.lineStyle(2, bodyColor, 0.8);
       this.graphics.beginPath();
-      this.graphics.moveTo(base.x - 18, bodyY);
-      this.graphics.lineTo(base.x - 30, bodyY + 8);
-      this.graphics.moveTo(base.x + 18, bodyY);
-      this.graphics.lineTo(base.x + 30, bodyY + 8);
+      this.graphics.moveTo(base.x - 14, bodyY - 6);
+      this.graphics.lineTo(base.x - 22, bodyY - 12);
+      this.graphics.moveTo(base.x + 14, bodyY - 6);
+      this.graphics.lineTo(base.x + 22, bodyY - 12);
       this.graphics.strokePath();
     } else if (enemy.type === 'sniper') {
-      this.graphics.lineStyle(3, 0xfff0ae, 0.9);
-      this.graphics.beginPath();
-      this.graphics.moveTo(base.x, bodyY - enemy.radius * 0.75);
-      this.graphics.lineTo(base.x + screenFacing.x * 26, bodyY - enemy.radius * 0.85 + screenFacing.y * 10);
-      this.graphics.strokePath();
       this.graphics.fillStyle(0xfff0ae, 0.82);
-      this.graphics.fillCircle(base.x + screenFacing.x * 10, bodyY - enemy.radius * 0.6 + screenFacing.y * 5, 3);
+      this.graphics.fillCircle(base.x + screenFacing.x * 6, bodyY - 18 + screenFacing.y * 3, 2.5);
     } else if (enemy.type === 'shield') {
       const shieldX = base.x + screenFacing.x * 18;
       const shieldY = bodyY + screenFacing.y * 10;
@@ -527,17 +694,15 @@ export class GameScene extends Phaser.Scene {
       this.graphics.lineTo(shieldX + screenFacing.y * 10, shieldY - screenFacing.x * 10);
       this.graphics.strokePath();
     } else if (enemy.type === 'brute') {
-      this.graphics.fillStyle(0xffc18f, 0.16);
+      this.graphics.fillStyle(0xffc18f, 0.12);
       this.graphics.fillEllipse(base.x, bodyY, enemy.radius * 1.5, enemy.radius * 2);
     } else if (enemy.type === 'captain') {
-      this.graphics.fillStyle(0xffbfd0, 0.16);
+      this.graphics.fillStyle(0xffbfd0, 0.12);
       this.graphics.fillEllipse(base.x, bodyY, enemy.radius * 1.8, enemy.radius * 2.2);
       this.graphics.lineStyle(3, 0xffbfd0, 0.75);
       this.graphics.beginPath();
-      this.graphics.moveTo(base.x - 22, bodyY - 18);
-      this.graphics.lineTo(base.x + 22, bodyY - 18);
-      this.graphics.moveTo(base.x - 28, bodyY + 8);
-      this.graphics.lineTo(base.x + 28, bodyY + 8);
+      this.graphics.moveTo(base.x - 20, bodyY - 26);
+      this.graphics.lineTo(base.x + 20, bodyY - 26);
       this.graphics.strokePath();
       this.graphics.fillStyle(0x091421, 0.92);
       this.graphics.fillEllipse(base.x + screenFacing.x * 20, bodyY + screenFacing.y * 10, 24, 36);
@@ -545,44 +710,47 @@ export class GameScene extends Phaser.Scene {
       this.graphics.strokeEllipse(base.x + screenFacing.x * 20, bodyY + screenFacing.y * 10, 24, 36);
     }
 
-    const healthWidth = enemy.radius * 1.6;
+    const healthWidth = Math.max(30, enemy.radius * 1.6);
+    const barY = base.y - 64 * scale;
     this.graphics.fillStyle(0x05101a, 0.9);
-    this.graphics.fillRect(base.x - healthWidth / 2, base.y - enemy.radius * 2.2, healthWidth, 5);
+    this.graphics.fillRect(base.x - healthWidth / 2, barY, healthWidth, 5);
     this.graphics.fillStyle(bodyColor, 0.9);
-    this.graphics.fillRect(base.x - healthWidth / 2, base.y - enemy.radius * 2.2, healthWidth * (enemy.health / enemy.maxHealth), 5);
+    this.graphics.fillRect(base.x - healthWidth / 2, barY, healthWidth * (enemy.health / enemy.maxHealth), 5);
   }
 
   private drawPlayer(anchorX: number, anchorY: number, cameraTarget: Vector2) {
     const state = this.simulation.getState();
     const player = state.player;
     const base = this.projectPoint(player.position, anchorX, anchorY, cameraTarget);
-    const aim = player.facing;
-
-    this.graphics.fillStyle(0x03111a, 0.45);
-    this.graphics.fillEllipse(base.x, base.y + 14, 52, 24);
-
-    this.graphics.fillStyle(0x24f0ff, 0.95);
-    this.graphics.fillEllipse(base.x, base.y - 18, 46, 62);
-    this.graphics.lineStyle(2, 0xb5fdff, 0.7);
-    this.graphics.strokeEllipse(base.x, base.y - 18, 46, 62);
-
-    if (state.playerInCover) {
-      this.graphics.lineStyle(3, 0x7affb8, 0.64);
-      this.graphics.strokeEllipse(base.x, base.y - 8, 62, 78);
-    }
-
-    const muzzleX = base.x + aim.x * 18;
-    const muzzleY = base.y - 20 + aim.y * 10;
+    const facing = this.toScreenDirection(player.facing);
+    const speed = Math.hypot(player.velocity.x, player.velocity.y);
+    const stride = speed > 8 ? Math.sin(state.timeSeconds * 16) : 0;
     const weaponColor = player.currentWeapon === 'scatter'
       ? 0xffd166
       : player.currentWeapon === 'rail'
         ? 0x5ef7ff
         : 0xff67cf;
-    this.graphics.lineStyle(player.currentWeapon === 'rail' ? 6 : 5, weaponColor, player.overheated ? 0.25 : 0.88);
-    this.graphics.beginPath();
-    this.graphics.moveTo(base.x, base.y - 16);
-    this.graphics.lineTo(muzzleX, muzzleY);
-    this.graphics.strokePath();
+
+    if (state.playerInCover) {
+      this.graphics.lineStyle(3, 0x7affb8, 0.64);
+      this.graphics.strokeEllipse(base.x, base.y - 2, 86, 38);
+    }
+
+    this.drawFigure(base, facing, {
+      scale: 1.36,
+      bulk: 1,
+      armour: 0x123a50,
+      plate: 0x2a7d97,
+      trim: 0x5ef7ff,
+      visor: 0xb5fdff,
+      ringColor: PLAYER_RING_COLOR,
+      ringAlpha: 0.65 + Math.sin(state.timeSeconds * 3) * 0.15,
+      weaponColor,
+      weaponWidth: player.currentWeapon === 'rail' ? 4 : 3.5,
+      weaponLength: player.currentWeapon === 'rail' ? 26 : 20,
+      weaponAlpha: player.overheated ? 0.3 : 0.92,
+      stride,
+    });
   }
 
   private drawPickup(pickup: PickupState, anchorX: number, anchorY: number, cameraTarget: Vector2, timeSeconds: number) {
