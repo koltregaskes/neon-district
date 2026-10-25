@@ -91,7 +91,7 @@ type EffectiveWeaponProfile = WeaponProfile & {
 const WEAPON_PROFILES: Record<WeaponType, WeaponProfile> = {
   volley: {
     name: 'VX-9 Volley Rifle',
-    detail: 'Balanced corp carbine for mobile lane control.',
+    detail: 'Balanced corp carbine. Right click stitches a short fan.',
     fireCooldown: 0.14,
     projectileSpeed: 980,
     projectileLife: 0.95,
@@ -105,7 +105,7 @@ const WEAPON_PROFILES: Record<WeaponType, WeaponProfile> = {
   },
   scatter: {
     name: 'HX-5 Scattergun',
-    detail: 'Close-range shredder that tears through swarms but burns hot.',
+    detail: 'Close-range shredder. Right click chambers one long slug.',
     fireCooldown: 0.26,
     projectileSpeed: 920,
     projectileLife: 0.58,
@@ -119,7 +119,7 @@ const WEAPON_PROFILES: Record<WeaponType, WeaponProfile> = {
   },
   rail: {
     name: 'ARC-12 Rail Lance',
-    detail: 'High-voltage puncture shot with brutal burst damage.',
+    detail: 'High-voltage puncture shot. Right click forks the discharge.',
     fireCooldown: 0.42,
     projectileSpeed: 1280,
     projectileLife: 1.15,
@@ -130,6 +130,51 @@ const WEAPON_PROFILES: Record<WeaponType, WeaponProfile> = {
     energyCost: 16,
     width: 6,
     color: '#5ef7ff',
+  },
+};
+
+const ALT_FIRE_PROFILES: Record<WeaponType, WeaponProfile> = {
+  volley: {
+    name: 'Stitch burst',
+    detail: 'Right click fans three lighter rounds off the lane.',
+    fireCooldown: 0.52,
+    projectileSpeed: 860,
+    projectileLife: 0.72,
+    projectileCount: 3,
+    spread: 0.22,
+    damage: 16,
+    heatPerShot: 24,
+    energyCost: 12,
+    width: 3,
+    color: '#ffb3ea',
+  },
+  scatter: {
+    name: 'Slug',
+    detail: 'Right click chambers one heavy slug that reaches past the cone.',
+    fireCooldown: 0.7,
+    projectileSpeed: 1040,
+    projectileLife: 0.95,
+    projectileCount: 1,
+    spread: 0,
+    damage: 36,
+    heatPerShot: 18,
+    energyCost: 10,
+    width: 5,
+    color: '#ffe7a3',
+  },
+  rail: {
+    name: 'Arc fork',
+    detail: 'Right click dumps a forked discharge across a cluster.',
+    fireCooldown: 0.84,
+    projectileSpeed: 1100,
+    projectileLife: 0.7,
+    projectileCount: 3,
+    spread: 0.62,
+    damage: 22,
+    heatPerShot: 36,
+    energyCost: 22,
+    width: 4,
+    color: '#9afbff',
   },
 };
 
@@ -389,6 +434,7 @@ function createPlayer(startingWeapon: WeaponType, runConfig: RunConfig): PlayerS
     weaponHeat: 0,
     overheated: false,
     fireCooldown: 0,
+    altFireCooldown: 0,
     dashCooldown: 0,
     shieldRegenDelay: 0,
     facing: { x: 0.8, y: -0.2 },
@@ -533,6 +579,7 @@ export class NeonDistrictSimulation {
       moveY: 0,
       aimWorld: { ...CENTER_NODE },
       firing: false,
+      altFiring: false,
       dashPressed: false,
       swapPrevPressed: false,
       swapNextPressed: false,
@@ -558,6 +605,7 @@ export class NeonDistrictSimulation {
       moveY: 0,
       aimWorld: { ...CENTER_NODE },
       firing: false,
+      altFiring: false,
       dashPressed: false,
       swapPrevPressed: false,
       swapNextPressed: false,
@@ -1156,7 +1204,52 @@ export class NeonDistrictSimulation {
     player.fireCooldown = profile.fireCooldown;
     player.energy = clamp(player.energy - profile.energyCost, 0, player.maxEnergy);
     player.weaponHeat = clamp(player.weaponHeat + profile.heatPerShot, 0, 115);
-    this.emitEvent({ type: 'shot-fired', weapon: player.currentWeapon, origin: { ...player.position }, direction: { ...aimVector } });
+    this.emitEvent({ type: 'shot-fired', weapon: player.currentWeapon, origin: { ...player.position }, direction: { ...aimVector }, alt: false });
+
+    if (player.weaponHeat >= 100) {
+      player.overheated = true;
+      this.state.districtStatus = 'Weapon spool overheated';
+      this.state.districtSummary = 'Back off for a second. Let the smartgun shed heat before the next push.';
+      this.emitEvent({ type: 'overheat' });
+    }
+  }
+
+  private fireAlternate() {
+    const player = this.state.player;
+    const profile = ALT_FIRE_PROFILES[player.currentWeapon];
+    if (player.altFireCooldown > 0 || player.overheated || player.energy < profile.energyCost) return;
+
+    const aimVector = normalize({
+      x: this.input.aimWorld.x - player.position.x,
+      y: this.input.aimWorld.y - player.position.y,
+    });
+    if (!Number.isFinite(aimVector.x) || !Number.isFinite(aimVector.y)) return;
+
+    const aimAngle = Math.atan2(aimVector.y, aimVector.x);
+    const projectileCount = profile.projectileCount;
+
+    for (let index = 0; index < projectileCount; index += 1) {
+      const spreadOffset = projectileCount === 1 ? 0 : ((index / (projectileCount - 1)) - 0.5) * profile.spread;
+      const shotVector = rotateVector({ x: Math.cos(aimAngle), y: Math.sin(aimAngle) }, spreadOffset);
+      this.state.projectiles.push({
+        id: this.nextProjectileId++,
+        owner: 'player',
+        position: { x: player.position.x + shotVector.x * 34, y: player.position.y + shotVector.y * 34 },
+        velocity: { x: shotVector.x * profile.projectileSpeed, y: shotVector.y * profile.projectileSpeed },
+        damage: profile.damage,
+        life: profile.projectileLife,
+        color: profile.color,
+        width: profile.width,
+        shieldFrontMultiplier: player.currentWeapon === 'rail' ? 0.42 : 0.18,
+        shieldBreakMultiplier: 1,
+      });
+    }
+
+    this.tutorial.shotsFired += 1;
+    player.altFireCooldown = profile.fireCooldown;
+    player.energy = clamp(player.energy - profile.energyCost, 0, player.maxEnergy);
+    player.weaponHeat = clamp(player.weaponHeat + profile.heatPerShot, 0, 115);
+    this.emitEvent({ type: 'shot-fired', weapon: player.currentWeapon, origin: { ...player.position }, direction: { ...aimVector }, alt: true });
 
     if (player.weaponHeat >= 100) {
       player.overheated = true;
@@ -1781,6 +1874,7 @@ export class NeonDistrictSimulation {
       }
     }
     player.fireCooldown = Math.max(0, player.fireCooldown - dt);
+    player.altFireCooldown = Math.max(0, player.altFireCooldown - dt);
     player.dashCooldown = Math.max(0, player.dashCooldown - dt);
     player.shieldRegenDelay = Math.max(0, player.shieldRegenDelay - dt);
     player.weaponHeat = Math.max(0, player.weaponHeat - (PLAYER_HEAT_COOLDOWN + (modifiers.heatCooldownBonus ?? 0)) * dt);
@@ -1847,6 +1941,10 @@ export class NeonDistrictSimulation {
 
     if (this.input.firing) {
       this.fireProjectile();
+    }
+
+    if (this.input.altFiring) {
+      this.fireAlternate();
     }
 
     if (state.combatActive) {

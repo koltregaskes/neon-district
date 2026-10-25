@@ -41,6 +41,7 @@ type KeyMap = {
   Q: Phaser.Input.Keyboard.Key;
   E: Phaser.Input.Keyboard.Key;
   R: Phaser.Input.Keyboard.Key;
+  F: Phaser.Input.Keyboard.Key;
 };
 
 const SORTED_DISTRICT_OBSTACLES = [...DISTRICT_OBSTACLES].sort((a, b) => a.y - b.y);
@@ -157,7 +158,7 @@ export class GameScene extends Phaser.Scene {
       color: '#9fb4c9',
       wordWrap: { width: 440 },
     }).setDepth(10).setVisible(false);
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,SHIFT,SPACE,Q,E,R') as KeyMap;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,SHIFT,SPACE,Q,E,R,F') as KeyMap;
     this.input.mouse?.disableContextMenu();
     this.scale.on('resize', () => {
       this.invalidateStaticLayer();
@@ -191,6 +192,7 @@ export class GameScene extends Phaser.Scene {
       moveY,
       aimWorld,
       firing: pointer.isDown && pointer.leftButtonDown(),
+      altFiring: pointer.rightButtonDown() || this.keys.F.isDown,
       dashPressed: dashDown && !this.lastDashDown,
       swapPrevPressed: swapPrevDown && !this.lastSwapPrevDown,
       swapNextPressed: swapNextDown && !this.lastSwapNextDown,

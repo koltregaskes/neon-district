@@ -106,6 +106,7 @@ Milestone review gates:
 - `WASD`: move
 - `Mouse`: aim
 - `Left click`: fire
+- `Right click` or `F`: alternate fire
 - `Shift` or `Space`: dash
 - `Q` / `E`: cycle weapons
 - `R`: reboot the run after a wipe

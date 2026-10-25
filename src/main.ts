@@ -369,6 +369,7 @@ app.innerHTML = `
             <ul>
               <li><strong>Move:</strong> WASD</li>
               <li><strong>Aim + fire:</strong> mouse</li>
+              <li><strong>Alt fire:</strong> right click or F</li>
               <li><strong>Dash:</strong> Shift or Space</li>
               <li><strong>Swap weapon:</strong> Q / E</li>
               <li><strong>Start clean:</strong> walk the lane in Recon, then trigger Sweep when you are ready</li>
@@ -398,7 +399,7 @@ app.innerHTML = `
           <h2 id="intelHeadline">Recon window open</h2>
           <p id="intelBody">Move around, read the chokepoints, then trigger the sweep when you want live pressure.</p>
           <ul class="intel-list">
-            <li><strong>Weapon profile:</strong> <span id="weaponDetailValue">Balanced corp carbine for mobile lane control.</span></li>
+            <li><strong>Weapon profile:</strong> <span id="weaponDetailValue">Balanced corp carbine. Right click stitches a short fan.</span></li>
             <li><strong>Threat profile:</strong> <span id="threatDetailValue">Quiet stack. No contact yet.</span></li>
             <li><strong>Runtime:</strong> <span id="timeValue">00:00</span></li>
           </ul>

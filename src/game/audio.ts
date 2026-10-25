@@ -136,6 +136,9 @@ export class NeonDistrictAudioDirector {
     events.forEach((event) => {
       if (event.type === 'shot-fired') {
         this.playShotByWeapon(event.weapon);
+        if (event.alt) {
+          this.playAltShotAccent(event.weapon);
+        }
       } else if (event.type === 'dash') {
         this.playDash();
       } else if (event.type === 'weapon-swapped') {
@@ -471,6 +474,25 @@ export class NeonDistrictAudioDirector {
     this.playTone(midiToFrequency(67), now, 0.08, 'square', 0.036, this.sfxGain, 0.002, 0.08);
     this.playTone(midiToFrequency(79), now + 0.01, 0.06, 'square', 0.022, this.sfxGain, 0.002, 0.06);
     this.playNoise(now, 0.05, 2600, 0.012, this.sfxGain);
+  }
+
+  private playAltShotAccent(weapon: WeaponType) {
+    if (!this.context || !this.sfxGain) return;
+    const now = this.context.currentTime;
+
+    if (weapon === 'scatter') {
+      this.playTone(midiToFrequency(36), now, 0.16, 'square', 0.04, this.sfxGain, 0.004, 0.14);
+      return;
+    }
+
+    if (weapon === 'rail') {
+      this.playNoise(now, 0.14, 1800, 0.02, this.sfxGain);
+      this.playTone(midiToFrequency(74), now + 0.04, 0.12, 'sawtooth', 0.02, this.sfxGain, 0.002, 0.1);
+      return;
+    }
+
+    this.playNoise(now, 0.08, 1600, 0.016, this.sfxGain);
+    this.playTone(midiToFrequency(60), now + 0.03, 0.1, 'triangle', 0.02, this.sfxGain, 0.002, 0.08);
   }
 
   private playPickupByType(type: PickupType) {

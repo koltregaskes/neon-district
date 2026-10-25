@@ -34,6 +34,7 @@ export interface PlayerState {
   weaponHeat: number;
   overheated: boolean;
   fireCooldown: number;
+  altFireCooldown: number;
   dashCooldown: number;
   shieldRegenDelay: number;
   facing: Vector2;
@@ -342,6 +343,7 @@ export interface SimInput {
   moveY: number;
   aimWorld: Vector2;
   firing: boolean;
+  altFiring: boolean;
   dashPressed: boolean;
   swapPrevPressed: boolean;
   swapNextPressed: boolean;
@@ -474,6 +476,7 @@ export type SimulationEvent =
       weapon: WeaponType;
       origin: Vector2;
       direction: Vector2;
+      alt: boolean;
     }
   | {
       type: 'dash';
