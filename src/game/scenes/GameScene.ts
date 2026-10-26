@@ -881,8 +881,8 @@ export class GameScene extends Phaser.Scene {
       this.gameOverBody
         .setText(
           state.victory
-            ? 'Extraction locked and the data tap came home. Press R or use Run Another Contract to replay the slice.'
-            : 'Press R or use Reboot Run to drop back into the district.',
+            ? 'Extraction locked. Read the debrief: the district is secured only after all six contracts.'
+            : 'Route lost. Reboot the contract. The campaign ends only when a faction heat hits 100.',
         )
         .setPosition(panelX + 28, panelY + 82)
         .setVisible(true);
