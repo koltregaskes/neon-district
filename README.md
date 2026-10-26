@@ -1,35 +1,45 @@
 # Neon District
 
-`Neon District` is a browser-first cyberpunk isometric shooter prototype inspired by the readable pressure, industrial density, and high-voltage mood of games like *The Ascent*.
-
-The longer-term production target and full design direction now live in [DESIGN-BIBLE.md](./DESIGN-BIBLE.md).
-
-The current build is a vertical slice with a real contract shell around it:
-
-- contract board, loadout selection, cyberware, and armory tuning
-- twin-stick style movement and aim
-- dash, shield, energy, and heat management
-- multi-phase contracts with recon, breach, upload hold, and extraction
-- escalating enemy waves with multiple enemy roles and elite pressure
-- faction heat, reputation drift, banked credits, and permanent unlocks
-- a layered cyberpunk HUD wrapped around an isometric combat arena
+Neon District is a browser cyberpunk shooter. Six contracts make the campaign. Extract every one to secure the district, or let a faction's heat reach 100 and lose it.
 
 ## Run locally
 
-```powershell
-cd "W:\Repos\_My Games\neon-district"
+```bash
 npm install
 npm run dev
 ```
 
+Open the local URL Vite prints. The game is served under `/neon-district/`.
+
+## How to play
+
+- `WASD`: move
+- `Mouse`: aim
+- `Left click`: fire
+- `Right click` or `F`: alternate fire
+- `Shift` or `Space`: dash
+- `Q` / `E`: cycle weapons
+- `R`: reboot the current contract after a wipe
+
+Pick a contract on the board, choose a weapon and augment, then Enter District. Activate Sweep when you want the fight to start. Hack the terminal, hold the upload, and stand in the extraction ring before the window closes.
+
+## How to finish
+
+You win when all six contracts have been extracted once. The debrief says **District secured**.
+
+You lose when any faction heat reaches 100. The debrief says **District locked**.
+
+A wiped contract is a reboot, not a campaign loss. Credits, heat, and closed contracts save in this browser. **New campaign** clears that save and opens the board again. `?resetProgress=1` does the same on load.
+
 ## Build
 
-```powershell
-cd "W:\Repos\_My Games\neon-district"
+```bash
 npm run build
 ```
 
-## Manager Review Flow
+## Review routes
+
+These URLs seed a review profile. They are not the campaign. Start from `npm run dev` for a real run.
 
 Manager-standard review URL:
 
@@ -79,16 +89,12 @@ Review query params:
 - `hotDrop=1`: legacy live-combat fast entry
 - `skipBriefing=1`: legacy alias for skipping the shell
 - `resetProgress=1`: clears local campaign progress
+- `debugRuntime=1`: exposes `window.__NEON_DISTRICT_RUNTIME__` after entry
 
-Shared evidence pack:
+Refresh the review pack with:
 
-- [W:\Repos\_My Games\LOCAL-ONLY\captures\neon-district](W:\Repos\_My Games\LOCAL-ONLY\captures\neon-district)
-
-Refresh the shared review pack with:
-
-```powershell
-cd "W:\Repos\_My Games\neon-district"
-cmd /c npm run capture:review
+```bash
+npm run capture:review
 ```
 
 Milestone review gates:
@@ -113,25 +119,10 @@ Milestone review gates:
 
 ## Design direction
 
-This project is intentionally using a browser-friendly stack first:
+This project uses a browser-friendly stack:
 
-- `Phaser` for fast combat iteration and rendering
-- `TypeScript + Vite` for a lightweight workflow
-- DOM overlays for readable HUD and production-friendly UI iteration
+- `Phaser` for combat and rendering
+- `TypeScript + Vite` for the workflow
+- DOM overlays for the HUD and the campaign shell
 
-Recent delivery/performance hardening:
-
-- the Phaser runtime now lazy-loads after district entry from a local shipped runtime asset instead of inflating briefing-shell startup or the Vite bundle graph
-- live HUD updates cache DOM nodes and skip redundant text/style writes
-- review evidence generation is now scripted through Playwright instead of depending on manual capture passes
-- featured authored contracts, `Dead Signal Choir Heist`, `Glassfall Nullbreaker Siege`, and `Redline Blackout Run` add shaped mission beats on top of the stable sandbox slice
-
-That keeps us moving quickly while we build toward denser districts, better combat readability, more enemy behaviours, weapon differentiation, boss encounters, and eventually a larger campaign structure.
-
-## Next priorities
-
-- lock Milestone 4 audio targets for weapons, shields, elites, ambience, and extraction
-- harden screenshot-ready shell and combat presentation around the featured authored route
-- run a formal outsider playtest checklist that tests onboarding, route comprehension, wipe recovery, and input clarity
-- log review-hardware performance targets and named hotspots before Milestone 5 demo packaging
-- keep using the browser build as the fast review and hardening surface while the larger desktop product target stays defined
+The finish line for this build is the six-contract district campaign: extract all six, or lose when faction heat hits 100.

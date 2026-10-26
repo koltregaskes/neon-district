@@ -10,6 +10,8 @@ import {
 } from './game/content';
 import {
   createRunConfig,
+  getCampaignStatus,
+  getDistrictHeatLock,
   getFallbackContractId,
   getFallbackCyberwareId,
   getCampaignLoadInfo,
@@ -48,6 +50,7 @@ if (!app) {
 const launchParams = new URLSearchParams(window.location.search);
 const showcaseMode = launchParams.get('showcase') === '1';
 const reviewMode = launchParams.get('review') === '1' || showcaseMode;
+document.body.dataset.review = reviewMode ? 'true' : 'false';
 const reviewSlice = launchParams.get('reviewSlice');
 const showcaseReviewMode = showcaseMode || (reviewMode && reviewSlice === 'authored');
 const bossReviewMode = reviewMode && reviewSlice === 'boss';
@@ -89,14 +92,16 @@ app.innerHTML = `
   <div class="shell">
     <div class="briefing-overlay" id="briefingOverlay">
       <div class="briefing-panel">
-        <div class="eyebrow">Phase Two Browser Slice</div>
+        <div class="eyebrow">District campaign</div>
         <div class="briefing-grid">
           <section class="briefing-hero">
             <p class="briefing-kicker" id="briefingKicker">Contract network // Vanta Stack</p>
             <h1>Neon District</h1>
+            <p class="briefing-copy" id="campaignGoal">
+              Extract all six contracts once to secure the district. If any faction heat reaches 100, the district locks and the campaign is lost. A wiped contract can be rebooted until that lock.
+            </p>
             <p class="briefing-copy" id="briefingCopy">
-              The district is open for repeat contracts now. Pick the lane, fit the augment,
-              watch faction pressure climb, and turn the combat slice into the start of a real campaign loop.
+              Pick a contract, fit an augment, and extract. Faction heat climbs with every run.
             </p>
             <div class="briefing-tags">
               <span id="briefingMissionTypeTag">Data theft</span>
@@ -201,13 +206,14 @@ app.innerHTML = `
                 </label>
               </div>
               <p class="briefing-note" id="briefingNote">
-                Phase Two progression saves locally in your browser. Add <code>?resetProgress=1</code> to the URL if you want a clean campaign review.
+                The campaign saves locally in this browser. Add <code>?resetProgress=1</code> to the URL for a clean board.
               </p>
             </section>
           </div>
         </div>
 
         <div class="briefing-actions">
+          <button class="control-button control-button--ghost" id="newCampaignButton" type="button" hidden>New campaign</button>
           <button class="control-button control-button--alt" id="hotDropButton" type="button">Hot Drop</button>
           <button class="control-button" id="beginContractButton" type="button">Enter District</button>
         </div>
@@ -216,7 +222,7 @@ app.innerHTML = `
 
     <header class="top-ribbon">
       <div class="title-stack">
-        <div class="eyebrow">Browser Vertical Slice // Contract Network</div>
+        <div class="eyebrow">Six contracts // Secure the district</div>
         <h1>Neon District</h1>
         <p class="status-ticker" id="statusTicker">District quiet. Contract board live.</p>
       </div>
@@ -463,6 +469,7 @@ const audioToggleButton = requireElement<HTMLButtonElement>('#audioToggleButton'
 const toggleIntelButton = requireElement<HTMLButtonElement>('#toggleIntelButton');
 const beginContractButton = requireElement<HTMLButtonElement>('#beginContractButton');
 const hotDropButton = requireElement<HTMLButtonElement>('#hotDropButton');
+const newCampaignButton = requireElement<HTMLButtonElement>('#newCampaignButton');
 const missionSummary = requireElement<HTMLElement>('#missionSummary');
 const summaryReplayButton = requireElement<HTMLButtonElement>('#summaryReplayButton');
 const summaryBriefingButton = requireElement<HTMLButtonElement>('#summaryBriefingButton');
@@ -634,7 +641,47 @@ const formatVictoryGap = (requiredVictories: number) => {
   return remaining === 1 ? '1 more live extraction' : `${remaining} more live extractions`;
 };
 
+const describeCampaignGoal = (status: ReturnType<typeof getCampaignStatus>) => {
+  if (status === 'won') {
+    return 'District secured. Every contract has been extracted once. Start a new campaign to run the board again.';
+  }
+  if (status === 'lost') {
+    const faction = getDistrictHeatLock(campaign);
+    const name = faction ? FACTION_DETAILS[faction].shortName : 'A faction';
+    return `District locked. ${name} heat reached 100, so the campaign is over. Start a new campaign to try the board again.`;
+  }
+  return 'Extract all six contracts once to secure the district. If any faction heat reaches 100, the district locks and the campaign is lost. A wiped contract can be rebooted until that lock.';
+};
+
 const getContractProgressionTarget = (): ProgressionTarget => {
+  const status = getCampaignStatus(campaign);
+  if (status === 'won') {
+    return {
+      kind: 'contract',
+      id: null,
+      title: 'District secured',
+      state: 'Campaign won',
+      detail: 'All six contracts have been extracted once.',
+      action: 'Start a new campaign to run the board again.',
+      ready: false,
+      completed: true,
+    };
+  }
+  if (status === 'lost') {
+    const faction = getDistrictHeatLock(campaign);
+    const name = faction ? FACTION_DETAILS[faction].shortName : 'A faction';
+    return {
+      kind: 'contract',
+      id: null,
+      title: 'District locked',
+      state: 'Campaign lost',
+      detail: `${name} heat reached 100 before the board was cleared.`,
+      action: 'Start a new campaign. A wiped contract is not a campaign loss until heat hits 100.',
+      ready: false,
+      completed: false,
+    };
+  }
+
   const unlockedContracts = getUnlockedContracts(campaign)
     .filter((contract) => !campaign.completedContracts.includes(contract.id))
     .sort((a, b) => b.unlockVictories - a.unlockVictories || b.basePayout - a.basePayout);
@@ -672,11 +719,11 @@ const getContractProgressionTarget = (): ProgressionTarget => {
   return {
     kind: 'contract',
     id: null,
-    title: 'Contract ladder cleared',
-    state: 'All routes open',
-    detail: 'Every contract is already unlocked. Use the highest-pressure route as the next run target instead of grinding for access.',
-    action: 'Push the best open route and use armory or cyberware choices to shape the next attempt.',
-    ready: true,
+    title: 'District secured',
+    state: 'Campaign won',
+    detail: 'All six contracts have been extracted once.',
+    action: 'Start a new campaign to run the board again.',
+    ready: false,
     completed: true,
   };
 };
@@ -1411,6 +1458,7 @@ const renderBriefingUi = () => {
   renderContractCopy();
   syncLoadoutButtons();
   renderBriefingNote();
+  syncCampaignEntry();
 };
 
 const setIntelCollapsed = (collapsed: boolean) => {
@@ -1459,11 +1507,24 @@ const renderBriefingNote = () => {
   renderPlaytestScript();
 };
 
+const syncCampaignEntry = () => {
+  const status = getCampaignStatus(campaign);
+  const locked = status !== 'active';
+  setText('#campaignGoal', describeCampaignGoal(status));
+  newCampaignButton.hidden = !locked;
+  const booting = beginContractButton.textContent === 'Booting District...';
+  if (!booting) {
+    beginContractButton.disabled = locked;
+    hotDropButton.disabled = locked;
+  }
+};
+
 const setEntryLoadingState = (loading: boolean) => {
-  beginContractButton.disabled = loading;
-  hotDropButton.disabled = loading;
   beginContractButton.textContent = loading ? 'Booting District...' : 'Enter District';
   hotDropButton.textContent = loading ? 'Preparing Drop...' : 'Hot Drop';
+  beginContractButton.disabled = loading || getCampaignStatus(campaign) !== 'active';
+  hotDropButton.disabled = loading || getCampaignStatus(campaign) !== 'active';
+  newCampaignButton.hidden = getCampaignStatus(campaign) === 'active';
   if (loading) {
     briefingNote.innerHTML = reviewMode
       ? showcaseMode
@@ -1479,6 +1540,7 @@ const setEntryLoadingState = (loading: boolean) => {
   } else {
     renderBriefingNote();
   }
+  syncCampaignEntry();
 };
 
 const updateAudioButton = () => {
@@ -1587,12 +1649,20 @@ const handleHudUpdate = (snapshot: HudSnapshot) => {
   setText('#eliteStatusValue', snapshot.eliteActive && snapshot.eliteCallsign ? `${snapshot.eliteCallsign} // ${Math.max(1, Math.round((snapshot.eliteHealth / Math.max(snapshot.eliteMaxHealth, 1)) * 100))}%` : snapshot.eliteDefeated ? `${snapshot.eliteCallsign ?? 'Elite'} down` : contract.elite ? `${contract.elite.callsign} scheduled` : 'No elite on route');
   setText('#hazardStatusValue', snapshot.activeHazardLabel ? `${snapshot.activeHazardLabel} // ${snapshot.activeHazardCount}` : contract.hazards?.length ? `${contract.hazards.length} hazard window${contract.hazards.length === 1 ? '' : 's'}` : 'Pressure-only route');
   setText('#eliteDetailValue', snapshot.eliteActive && snapshot.eliteCallsign ? `${snapshot.eliteCallsign} has the lane. Break the line and keep moving.` : snapshot.eliteDefeated ? 'The route is still hot, but the elite pressure is gone.' : contract.elite ? contract.elite.intro : 'This contract is a cleaner route check with no elite attached.');
-  setText('#summaryEyebrow', summaryResult?.victory ? 'Contract complete' : summaryResult ? 'Contract failed' : 'Contract outcome');
-  setText('#summaryTitle', summaryResult?.victory ? `${summaryResult.contractTitle} closed` : summaryResult ? `${summaryResult.contractTitle} lost` : 'Contract live');
-  setText('#summaryBody', summaryResult
+  const arcStatus = summaryResult ? getCampaignStatus(campaign) : 'active';
+  const arcEnded = arcStatus !== 'active';
+  const arcFaction = getDistrictHeatLock(campaign);
+  const arcFactionName = arcFaction ? FACTION_DETAILS[arcFaction].shortName : 'A faction';
+  setText('#summaryEyebrow', arcStatus === 'won' ? 'District secured' : arcStatus === 'lost' ? 'District locked' : summaryResult?.victory ? 'Contract complete' : summaryResult ? 'Contract failed' : 'Contract outcome');
+  setText('#summaryTitle', arcStatus === 'won' ? 'District secured' : arcStatus === 'lost' ? 'District locked' : summaryResult?.victory ? `${summaryResult.contractTitle} closed` : summaryResult ? `${summaryResult.contractTitle} lost` : 'Contract live');
+  setText('#summaryBody', arcStatus === 'won'
+    ? 'All six contracts are extracted. The district is secured. Start a new campaign to run the board again.'
+    : arcStatus === 'lost'
+      ? `${arcFactionName} heat reached 100 before the board was cleared. The campaign is over. Start a new campaign to try again.`
+      : summaryResult
     ? `${describeContractDebrief(contract, summaryResult)} ${unlockLabels.length > 0 ? `New unlocks came online as the district reacted. ` : ''}${optionalOutcomeText} ${nextMoveSummary?.detail ?? ''}`.trim()
     : snapshot.districtSummary);
-  setText('#summaryOutcomeValue', summaryResult ? (summaryResult.victory ? 'Success' : 'Failure') : 'Live');
+  setText('#summaryOutcomeValue', arcStatus === 'won' ? 'Campaign won' : arcStatus === 'lost' ? 'Campaign lost' : summaryResult ? (summaryResult.victory ? 'Success' : 'Failure') : 'Live');
   setText('#summaryTimeValue', formatTime(summaryResult?.runtimeSeconds ?? snapshot.timeSeconds));
   setText('#summaryKillsValue', `${summaryResult?.kills ?? snapshot.kills}`);
   setText('#summaryScoreValue', `${(summaryResult?.score ?? snapshot.score).toLocaleString()}`);
@@ -1607,8 +1677,13 @@ const handleHudUpdate = (snapshot: HudSnapshot) => {
   setText('#summaryLossDetail', lossSummary?.detail ?? 'Successes keep the route moving; failures should still leave a readable recovery path with preserved salvage, named losses, and a clear retry target.');
   setText('#summaryPressureValue', pressureSummary?.value ?? 'No pressure change');
   setText('#summaryPressureDetail', pressureSummary?.detail ?? 'Faction trust and hostile heat will update here after a resolved run.');
-  setText('#summaryNextMoveValue', nextMoveSummary?.value ?? 'Pick the next ladder target');
-  setText('#summaryNextMoveDetail', nextMoveSummary?.detail ?? 'The shell will point at the strongest contract, armory, or cyberware follow-up after each run.');
+  setText('#summaryNextMoveValue', arcEnded ? 'New campaign' : nextMoveSummary?.value ?? 'Pick the next ladder target');
+  setText('#summaryNextMoveDetail', arcStatus === 'won'
+    ? 'The board is clear. New campaign resets credits, heat, and closed contracts.'
+    : arcStatus === 'lost'
+      ? 'Heat locked the district. New campaign starts the six contracts over.'
+      : nextMoveSummary?.detail ?? 'The shell will point at the strongest contract, armory, or cyberware follow-up after each run.');
+  summaryReplayButton.textContent = arcEnded ? 'New campaign' : summaryResult?.victory === false ? 'Reboot Run' : 'Run Another Contract';
   setText('#bankTicker', formatCredits(campaign.bankCredits));
   setText('#victoryTicker', `${campaign.victories}`);
   setText('#heatTicker', `${campaign.factions[contract.hostileFaction].heat}`);
@@ -1617,8 +1692,8 @@ const handleHudUpdate = (snapshot: HudSnapshot) => {
   setText('#dossierHeatValue', `${campaign.factions[contract.hostileFaction].heat}`);
   setText('#dossierFactionBody', `${FACTION_DETAILS[contract.clientFaction].shortName} trust sits at ${signedValue(campaign.factions[contract.clientFaction].reputation)}. ${FACTION_DETAILS[contract.hostileFaction].shortName} heat is ${campaign.factions[contract.hostileFaction].heat}, so the route is only getting meaner.`);
   renderCaptureDirective(snapshot);
-  restartButton.textContent = snapshot.victory ? 'Run Another Contract' : snapshot.gameOver ? 'Reboot Run' : 'Reset Contract';
-  activateSweepButton.disabled = snapshot.combatActive || snapshot.contractResolved;
+  restartButton.textContent = arcEnded ? 'New campaign' : snapshot.victory ? 'Run Another Contract' : snapshot.gameOver ? 'Reboot Run' : 'Reset Contract';
+  activateSweepButton.disabled = snapshot.combatActive || snapshot.contractResolved || getCampaignStatus(campaign) !== 'active';
   activateSweepButton.textContent = snapshot.victory ? 'Contract Complete' : snapshot.gameOver ? 'Sweep Lost' : snapshot.combatActive ? 'Sweep Live' : 'Activate Sweep';
   gameShell.dataset.combat = snapshot.combatActive ? 'true' : 'false';
   gameShell.dataset.gameOver = snapshot.gameOver ? 'true' : 'false';
@@ -1686,7 +1761,7 @@ const ensureRuntimeLoaded = async (): Promise<RuntimeBootstrap> => {
       const nextAudioDirector = new AudioDirectorCtor();
       audioDirector = nextAudioDirector;
 
-      const nextRuntime = createNeonDistrictGame(gameRoot, handleHudUpdate, handleSimulationEvents);
+      const nextRuntime = createNeonDistrictGame(gameRoot, handleHudUpdate, handleSimulationEvents, rebootResolvedContract);
       runtime = nextRuntime;
       applySelectionsToRuntime();
       updateAudioButton();
@@ -1715,7 +1790,7 @@ const ensureRuntimeLoaded = async (): Promise<RuntimeBootstrap> => {
 
 const applySelectionsToRuntime = () => {
   persistSelections();
-  if (!runtime) {
+  if (!runtime || getCampaignStatus(campaign) !== 'active') {
     return;
   }
   runtime.setLoadoutWeapon(selectedWeapon);
@@ -1734,7 +1809,37 @@ const showBriefing = () => {
   gameRoot.blur();
 };
 
+const startNewCampaign = () => {
+  if (reviewMode) {
+    campaign = createReviewCampaignState();
+  } else {
+    resetCampaignState();
+    campaign = loadCampaignState();
+    campaignLoadInfo = getCampaignLoadInfo();
+  }
+  selectedContractId = campaign.selectedContractId;
+  selectedCyberwareId = campaign.selectedCyberwareId;
+  selectedWeapon = campaign.selectedWeapon;
+  handledResolution = false;
+  latestRunResult = null;
+  runtime?.restart();
+  applySelectionsToRuntime();
+  showBriefing();
+};
+
+// R and the debrief buttons share this path. A finished district never reboots in place.
+const rebootResolvedContract = () => {
+  if (getCampaignStatus(campaign) !== 'active') {
+    startNewCampaign();
+    return;
+  }
+  handledResolution = false;
+  latestRunResult = null;
+  runtime?.restart();
+};
+
 const dismissBriefing = async (activateSweep = false, shouldUnlock = true) => {
+  if (getCampaignStatus(campaign) !== 'active') return;
   setEntryLoadingState(true);
   setText('#statusTicker', reviewMode ? showcaseMode ? 'Booting showcase route.' : hazardReviewMode ? 'Booting hazard review slice.' : bossReviewMode ? 'Booting boss review slice.' : showcaseReviewMode ? 'Booting featured authored review slice.' : 'Booting deterministic review slice.' : 'Booting district runtime.');
 
@@ -1784,16 +1889,17 @@ renderBriefingUi();
 applySelectionsToRuntime();
 setIntelCollapsed(false);
 
-if (autostartMode || legacySkipBriefing || hotDropMode) {
+if ((autostartMode || legacySkipBriefing || hotDropMode) && getCampaignStatus(campaign) === 'active') {
   void dismissBriefing(hotDropMode, false);
 }
 
 restartButton.addEventListener('click', () => {
   unlockAudio();
-  handledResolution = false;
-  latestRunResult = null;
-  runtime?.restart();
-  crazyGameplayStart();
+  const campaignEnded = getCampaignStatus(campaign) !== 'active';
+  rebootResolvedContract();
+  if (!campaignEnded) {
+    crazyGameplayStart();
+  }
 });
 campaignSnapshot.addEventListener('click', (event) => {
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-profile-action]');
@@ -1810,6 +1916,7 @@ campaignSnapshot.addEventListener('click', (event) => {
   }
 });
 activateSweepButton.addEventListener('click', () => {
+  if (getCampaignStatus(campaign) !== 'active') return;
   unlockAudio();
   runtime?.activateSweep();
 });
@@ -1830,10 +1937,15 @@ toggleIntelButton.addEventListener('click', () => {
   setIntelCollapsed(!gameShell.classList.contains('game-shell--intel-collapsed'));
 });
 beginContractButton.addEventListener('click', () => {
+  if (getCampaignStatus(campaign) !== 'active') return;
   void dismissBriefing(false, true);
 });
 hotDropButton.addEventListener('click', () => {
+  if (getCampaignStatus(campaign) !== 'active') return;
   void dismissBriefing(true, true);
+});
+newCampaignButton.addEventListener('click', () => {
+  startNewCampaign();
 });
 loadoutGrid.addEventListener('click', (event) => {
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-weapon]');
@@ -1883,13 +1995,18 @@ hideIntelCheckbox.addEventListener('change', () => {
 });
 summaryReplayButton.addEventListener('click', () => {
   unlockAudio();
-  handledResolution = false;
-  latestRunResult = null;
-  runtime?.restart();
-  focusGameRoot();
+  const campaignEnded = getCampaignStatus(campaign) !== 'active';
+  rebootResolvedContract();
+  if (!campaignEnded) {
+    focusGameRoot();
+  }
 });
 summaryBriefingButton.addEventListener('click', () => {
   focusVisibleChrome();
+  if (getCampaignStatus(campaign) !== 'active') {
+    showBriefing();
+    return;
+  }
   handledResolution = false;
   latestRunResult = null;
   runtime?.restart();

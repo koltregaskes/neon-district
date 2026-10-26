@@ -93,8 +93,27 @@ export function createDefaultCampaignState(): CampaignState {
   };
 }
 
+export const CAMPAIGN_HEAT_LOCK = 100;
+
 export function isContractUnlocked(state: CampaignState, contractId: ContractId) {
   return state.victories >= CONTRACTS_BY_ID[contractId].unlockVictories;
+}
+
+export function isCampaignCleared(state: CampaignState) {
+  return CONTRACTS.every((contract) => state.completedContracts.includes(contract.id));
+}
+
+export function getDistrictHeatLock(state: CampaignState): FactionKey | null {
+  const locked = (Object.keys(state.factions) as FactionKey[])
+    .find((faction) => state.factions[faction].heat >= CAMPAIGN_HEAT_LOCK);
+  return locked ?? null;
+}
+
+// A cleared board wins even when the finishing extract also pushes heat to the lock.
+export function getCampaignStatus(state: CampaignState): 'won' | 'lost' | 'active' {
+  if (isCampaignCleared(state)) return 'won';
+  if (getDistrictHeatLock(state)) return 'lost';
+  return 'active';
 }
 
 export function isCyberwareUnlocked(state: CampaignState, cyberwareId: CyberwareId) {

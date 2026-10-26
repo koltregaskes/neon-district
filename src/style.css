@@ -817,6 +817,11 @@ a {
   text-transform: uppercase;
 }
 
+body:not([data-review="true"]) .capture-docket,
+body:not([data-review="true"]) .briefing-card--playtest {
+  display: none;
+}
+
 .capture-docket {
   display: grid;
   gap: 16px;
