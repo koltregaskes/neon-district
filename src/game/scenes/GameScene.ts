@@ -10,6 +10,7 @@ import type { ArenaObstacle, EnemyState, HazardState, PickupState, SimulationEve
 
 type HudDispatch = (snapshot: ReturnType<NeonDistrictSimulation['createHudSnapshot']>) => void;
 type EventDispatch = (events: SimulationEvent[]) => void;
+type ResolvedRestartDispatch = () => void;
 type FxBurst = {
   position: Vector2;
   color: number;
@@ -116,6 +117,7 @@ export class GameScene extends Phaser.Scene {
   private readonly simulation: NeonDistrictSimulation;
   private readonly dispatchHud: HudDispatch;
   private readonly dispatchEvents: EventDispatch;
+  private readonly requestResolvedRestart: ResolvedRestartDispatch;
   private staticGraphics!: Phaser.GameObjects.Graphics;
   private graphics!: Phaser.GameObjects.Graphics;
   private gameOverTitle!: Phaser.GameObjects.Text;
@@ -134,11 +136,17 @@ export class GameScene extends Phaser.Scene {
   private cachedViewportWidth = 0;
   private cachedViewportHeight = 0;
 
-  constructor(simulation: NeonDistrictSimulation, dispatchHud: HudDispatch, dispatchEvents: EventDispatch) {
+  constructor(
+    simulation: NeonDistrictSimulation,
+    dispatchHud: HudDispatch,
+    dispatchEvents: EventDispatch,
+    requestResolvedRestart: ResolvedRestartDispatch,
+  ) {
     super('district-run');
     this.simulation = simulation;
     this.dispatchHud = dispatchHud;
     this.dispatchEvents = dispatchEvents;
+    this.requestResolvedRestart = requestResolvedRestart;
   }
 
   create() {
@@ -184,7 +192,8 @@ export class GameScene extends Phaser.Scene {
     const swapNextDown = this.keys.E.isDown;
 
     if (restartDown && !this.lastRestartDown && state.contractResolved) {
-      this.simulation.restart();
+      // Won or lost campaigns must not reboot through the sim. The shell owns that decision.
+      this.requestResolvedRestart();
     }
 
     this.simulation.setInput({

@@ -1693,7 +1693,7 @@ const handleHudUpdate = (snapshot: HudSnapshot) => {
   setText('#dossierFactionBody', `${FACTION_DETAILS[contract.clientFaction].shortName} trust sits at ${signedValue(campaign.factions[contract.clientFaction].reputation)}. ${FACTION_DETAILS[contract.hostileFaction].shortName} heat is ${campaign.factions[contract.hostileFaction].heat}, so the route is only getting meaner.`);
   renderCaptureDirective(snapshot);
   restartButton.textContent = arcEnded ? 'New campaign' : snapshot.victory ? 'Run Another Contract' : snapshot.gameOver ? 'Reboot Run' : 'Reset Contract';
-  activateSweepButton.disabled = snapshot.combatActive || snapshot.contractResolved;
+  activateSweepButton.disabled = snapshot.combatActive || snapshot.contractResolved || getCampaignStatus(campaign) !== 'active';
   activateSweepButton.textContent = snapshot.victory ? 'Contract Complete' : snapshot.gameOver ? 'Sweep Lost' : snapshot.combatActive ? 'Sweep Live' : 'Activate Sweep';
   gameShell.dataset.combat = snapshot.combatActive ? 'true' : 'false';
   gameShell.dataset.gameOver = snapshot.gameOver ? 'true' : 'false';
@@ -1761,7 +1761,7 @@ const ensureRuntimeLoaded = async (): Promise<RuntimeBootstrap> => {
       const nextAudioDirector = new AudioDirectorCtor();
       audioDirector = nextAudioDirector;
 
-      const nextRuntime = createNeonDistrictGame(gameRoot, handleHudUpdate, handleSimulationEvents);
+      const nextRuntime = createNeonDistrictGame(gameRoot, handleHudUpdate, handleSimulationEvents, rebootResolvedContract);
       runtime = nextRuntime;
       applySelectionsToRuntime();
       updateAudioButton();
@@ -1790,7 +1790,7 @@ const ensureRuntimeLoaded = async (): Promise<RuntimeBootstrap> => {
 
 const applySelectionsToRuntime = () => {
   persistSelections();
-  if (!runtime) {
+  if (!runtime || getCampaignStatus(campaign) !== 'active') {
     return;
   }
   runtime.setLoadoutWeapon(selectedWeapon);
@@ -1825,6 +1825,17 @@ const startNewCampaign = () => {
   runtime?.restart();
   applySelectionsToRuntime();
   showBriefing();
+};
+
+// R and the debrief buttons share this path. A finished district never reboots in place.
+const rebootResolvedContract = () => {
+  if (getCampaignStatus(campaign) !== 'active') {
+    startNewCampaign();
+    return;
+  }
+  handledResolution = false;
+  latestRunResult = null;
+  runtime?.restart();
 };
 
 const dismissBriefing = async (activateSweep = false, shouldUnlock = true) => {
@@ -1884,14 +1895,11 @@ if ((autostartMode || legacySkipBriefing || hotDropMode) && getCampaignStatus(ca
 
 restartButton.addEventListener('click', () => {
   unlockAudio();
-  if (getCampaignStatus(campaign) !== 'active') {
-    startNewCampaign();
-    return;
+  const campaignEnded = getCampaignStatus(campaign) !== 'active';
+  rebootResolvedContract();
+  if (!campaignEnded) {
+    crazyGameplayStart();
   }
-  handledResolution = false;
-  latestRunResult = null;
-  runtime?.restart();
-  crazyGameplayStart();
 });
 campaignSnapshot.addEventListener('click', (event) => {
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-profile-action]');
@@ -1908,6 +1916,7 @@ campaignSnapshot.addEventListener('click', (event) => {
   }
 });
 activateSweepButton.addEventListener('click', () => {
+  if (getCampaignStatus(campaign) !== 'active') return;
   unlockAudio();
   runtime?.activateSweep();
 });
@@ -1986,17 +1995,18 @@ hideIntelCheckbox.addEventListener('change', () => {
 });
 summaryReplayButton.addEventListener('click', () => {
   unlockAudio();
-  if (getCampaignStatus(campaign) !== 'active') {
-    startNewCampaign();
-    return;
+  const campaignEnded = getCampaignStatus(campaign) !== 'active';
+  rebootResolvedContract();
+  if (!campaignEnded) {
+    focusGameRoot();
   }
-  handledResolution = false;
-  latestRunResult = null;
-  runtime?.restart();
-  focusGameRoot();
 });
 summaryBriefingButton.addEventListener('click', () => {
   focusVisibleChrome();
+  if (getCampaignStatus(campaign) !== 'active') {
+    showBriefing();
+    return;
+  }
   handledResolution = false;
   latestRunResult = null;
   runtime?.restart();

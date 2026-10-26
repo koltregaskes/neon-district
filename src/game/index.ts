@@ -16,11 +16,12 @@ export type NeonDistrictRuntime = {
 export function createNeonDistrictGame(
   mount: HTMLElement,
   onHudUpdate: (snapshot: ReturnType<NeonDistrictSimulation['createHudSnapshot']>) => void,
-  onEvents: (events: SimulationEvent[]) => void = () => {},
+  onEvents: (events: SimulationEvent[]) => void,
+  onResolvedRestart: () => void,
 ): NeonDistrictRuntime {
   const simulation = new NeonDistrictSimulation();
   const bootScene = new BootScene();
-  const gameScene = new GameScene(simulation, onHudUpdate, onEvents);
+  const gameScene = new GameScene(simulation, onHudUpdate, onEvents, onResolvedRestart);
 
   const game = new Phaser.Game({
     type: Phaser.AUTO,
