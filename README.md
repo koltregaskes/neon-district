@@ -17,7 +17,7 @@ The current build is a vertical slice with a real contract shell around it:
 ## Run locally
 
 ```powershell
-cd "W:\Repos\_My Games\neon-district"
+cd "F:\Repos\games\neon-district"
 npm install
 npm run dev
 ```
@@ -25,7 +25,7 @@ npm run dev
 ## Build
 
 ```powershell
-cd "W:\Repos\_My Games\neon-district"
+cd "F:\Repos\games\neon-district"
 npm run build
 ```
 
@@ -82,12 +82,12 @@ Review query params:
 
 Shared evidence pack:
 
-- [W:\Repos\_My Games\LOCAL-ONLY\captures\neon-district](W:\Repos\_My Games\LOCAL-ONLY\captures\neon-district)
+- `A:\Workspaces\999-archive\W-ROOT\repos\_My Games\LOCAL-ONLY\captures\neon-district` (archived; choose a new evidence folder before re-running)
 
 Refresh the shared review pack with:
 
 ```powershell
-cd "W:\Repos\_My Games\neon-district"
+cd "F:\Repos\games\neon-district"
 cmd /c npm run capture:review
 ```
 
