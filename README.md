@@ -4,6 +4,8 @@
 
 The longer-term production target and full design direction now live in [DESIGN-BIBLE.md](./DESIGN-BIBLE.md).
 
+See the [design-bible gap audit](./docs/design-gaps.md) for implemented foundations, missing systems and the five highest-impact next steps.
+
 The current build is a vertical slice with a real contract shell around it:
 
 - contract board, loadout selection, cyberware, and armory tuning
